@@ -1,0 +1,9 @@
+{
+    "name": "Harith Farmer",
+    "short_name": "Harith",
+    "start_url": "/farmer",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#00897b",
+    "icons": []
+}

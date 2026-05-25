@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Harith – صفحة المزارع</title>
+
+    <!-- PWA -->
+    <link rel="manifest" href="/static/harith_manifest.json" />
+    <meta name="theme-color" content="#00897b" />
+
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        margin: 0;
+        padding: 16px;
+        background: #f5f5f5;
+        color: #222;
+      }
+      .card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+      }
+      h1,
+      h2 {
+        margin-top: 0;
+        font-size: 20px;
+      }
+      button {
+        padding: 10px 16px;
+        border-radius: 8px;
+        border: none;
+        font-size: 16px;
+        cursor: pointer;
+        margin-top: 8px;
+        width: 100%;
+        background: #00897b;
+        color: #fff;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .info {
+        font-size: 14px;
+      }
+      .status {
+        margin-top: 8px;
+        font-size: 14px;
+        white-space: pre-line;
+        min-height: 20px;
+      }
+      .program-card {
+        border-radius: 10px;
+        border: 1px solid #e0e0e0;
+        padding: 10px;
+        margin-bottom: 8px;
+        background: #fafafa;
+      }
+      .program-title {
+        font-weight: bold;
+        margin-bottom: 4px;
+      }
+      .program-meta {
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        margin-right: 4px;
+        background: #e0f2f1;
+        color: #00695c;
+      }
+      .badge.off {
+        background: #ffebee;
+        color: #c62828;
+      }
+      .small-muted {
+        font-size: 12px;
+        color: #777;
+        margin-top: 4px;
+      }
+
+      .loading-wrapper {
+        margin-top: 8px;
+        text-align: center;
+        min-height: 30px;
+      }
+
+      /* spinner للرفع فقط */
+      .loading {
+        display: inline-block;
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 3px solid #ccc;
+        border-top-color: #00897b;
+        animation: spin 0.8s linear infinite;
+      }
+
+      /* progress bar للتحميل */
+      .progress {
+        width: 100%;
+        max-width: 260px;
+        height: 18px;
+        background: #e0e0e0;
+        border-radius: 999px;
+        overflow: hidden;
+        margin: 0 auto;
+        position: relative;
+      }
+      .progress-inner {
+        height: 100%;
+        width: 0%;
+        background: #00897b;
+        border-radius: 999px;
+        transition: width 0.12s linear;
+      }
+      .progress-text {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        font-size: 12px;
+        font-weight: bold;
+        color: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        text-shadow: 0 0 2px #000;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* ===== تنسيق الـ Wizard (الخطوات) ===== */
+      .wizard-header {
+        margin-top: 12px;
+      }
+
+      .wizard-steps {
+        position: relative;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 8px;
+      }
+
+      /* الخط الرمادي الأساسي (من أقصى اليمين لليسار – RTL) */
+      .wizard-steps::before {
+        content: "";
+        position: absolute;
+        right: 0;
+        left: 0;
+        top: 12px;
+        height: 2px;
+        background: #e0e0e0;
+        z-index: 0;
+      }
+
+      /* الخط الأخضر حسب التقدم (active + السابق) */
+      .wizard-steps::after {
+        content: "";
+        position: absolute;
+        right: 0;              /* يبدأ من يمين الخطوة 1 */
+        top: 12px;
+        height: 2px;
+        width: var(--wizard-progress, 0%);
+        background: #00897b;
+        z-index: 0;
+      }
+
+      .wizard-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex: 1;
+        font-size: 12px;
+        color: #777;
+        position: relative;
+        z-index: 1; /* فوق الخط */
+      }
+
+      .wizard-circle {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 2px solid #e0e0e0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 4px;
+        background: #fafafa;
+        font-size: 12px;
+      }
+      .wizard-step.active .wizard-circle {
+        border-color: #00897b;
+        background: #00897b;
+        color: #fff;
+      }
+      .wizard-step.active {
+        color: #00897b;
+        font-weight: 600;
+      }
+      .wizard-step.done .wizard-circle {
+        border-color: #00897b;
+        background: #e0f2f1;
+        color: #00897b;
+      }
+      .wizard-step.done {
+        color: #00897b;
+      }
+
+      .step-card {
+        margin-top: 12px;
+      }
+
+      .wizard-nav {
+        display: flex;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .wizard-nav button {
+        width: 50%;
+        font-size: 15px;
+      }
+      .btn-secondary {
+        background: #e0e0e0;
+        color: #333;
+      }
+      .btn-secondary:disabled {
+        opacity: 0.7;
+      }
+
+      /* ===== اللوجو أعلى اليسار ===== */
+      .header-logo {
+        position: absolute;
+        top: 12px;
+        left: 16px;
+        height: 60px; /* غيرها حسب حجم لوقو حارث */
+      }
+    </style>
+  </head>
+  <body>
+    <img src="static/logo.png" class="header-logo" />
+
+    <!-- بطاقة تعريف ثابتة للمزارع + شريط خطوات -->
+    <div class="card">
+      <h1>حارث – صفحة المزارع</h1>
+      <p class="info">
+        هذه الصفحة تحفظ لك خطة الري من حارث وتوصلها لنظام الري (OpenSprinkler)
+        من خلال هذا السيرفر. لا تحتاج إدخال أي رقم أو إعدادات.
+      </p>
+      <p class="info">
+        <b>طريقة الاستخدام:</b><br />
+        1) في البيت/المكتب: تنزيل الخطة من حارث.<br />
+        2) في المزرعة: رفع الخطة إلى نظام الري. (لا يتطلب وصول للانترنت)<br />
+        3) المعاينة السريعة للتأكد من الخطة.
+      </p>
+      <p class="small-muted">
+        الخطة تحفظ داخل الجوال، ويمكنك رفعها لاحقًا حتى لو خرجت من الصفحة.
+      </p>
+
+      <!-- شريط خطوات الـ Wizard -->
+      <div class="wizard-header">
+        <div class="wizard-steps">
+          <div class="wizard-step active" data-step-indicator="1">
+            <div class="wizard-circle">1</div>
+            <div>تنزيل الخطة</div>
+          </div>
+          <div class="wizard-step" data-step-indicator="2">
+            <div class="wizard-circle">2</div>
+            <div>رفع الخطة</div>
+          </div>
+          <div class="wizard-step" data-step-indicator="3">
+            <div class="wizard-circle">3</div>
+            <div>ملخص الخطة</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- شريحة 1: تنزيل الخطة -->
+    <div class="card step-card" data-step="1">
+      <h2>1. تنزيل الخطة من حارث</h2>
+      <p class="info">
+        يفضّل تنفيذ هذه الخطوة في البيت أو المكتب حيث يتوفر إنترنت ثابت.
+      </p>
+      <button id="download-btn">تنزيل الخطة من حارث</button>
+      <div class="loading-wrapper">
+        <!-- progress bar للتحميل -->
+        <div id="download-progress" class="progress hidden">
+          <div id="download-progress-inner" class="progress-inner"></div>
+          <div id="download-progress-text" class="progress-text">0%</div>
+        </div>
+      </div>
+      <div id="download-status" class="status"></div>
+
+      <div class="wizard-nav">
+        <button id="prev-step" class="btn-secondary" disabled>السابق</button>
+        <button id="next-step">التالي</button>
+      </div>
+    </div>
+
+    <!-- شريحة 2: رفع الخطة -->
+    <div class="card step-card hidden" data-step="2">
+      <h2>2. رفع الخطة إلى نظام الري</h2>
+      <p class="info">
+        بعد الوصول للمزرعة، تأكد أن الجوال متصل بنفس شبكة نظام الري، ثم نفِّذ
+        هذه الخطوة.
+      </p>
+      <button id="upload-btn">رفع الخطة إلى نظام الري</button>
+      <div class="loading-wrapper">
+        <!-- spinner للرفع -->
+        <span id="upload-loading" class="loading hidden"></span>
+      </div>
+      <div id="upload-status" class="status"></div>
+
+      <div class="wizard-nav">
+        <button id="prev-step-2" class="btn-secondary">السابق</button>
+        <button id="next-step-2">التالي</button>
+      </div>
+    </div>
+
+    <!-- شريحة 3: ملخص الخطة -->
+    <div class="card step-card hidden" data-step="3">
+      <h2>3. معاينة سريعة للخطة المخزَّنة في الجوال</h2>
+      <p class="info">
+        هذه المعاينة فقط لتطمين المزارع أن الأوقات والأيام وعدد الخطوط صحيحة قبل
+        الاعتماد على الخطة.
+      </p>
+      <div id="preview"></div>
+
+      <div class="wizard-nav">
+        <button id="prev-step-3" class="btn-secondary">السابق</button>
+        <button id="restart-wizard">العودة للبداية</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>التقرير التشغيلي للري</h2>
+      <p class="info">
+        يعرض لك ملخص استهلاك الماء الأسبوعي، وتحليل الذكاء الصناعي، وتقرير الري
+        التفصيلي لكل Zone.
+      </p>
+      <button onclick="window.location.href='/report';">
+        عرض التقرير على المتصفح
+      </button>
+    </div>
+
+    <script>
+      const SCHEDULE_KEY = "harith_os_cached_schedule_v1";
+      let cachedSchedule = null;
+
+      // متغيرات شريط التقدم للتحميل
+      let downloadProgressInterval = null;
+      let downloadProgressCurrent = 0;
+      let downloadFetchCompleted = false;
+      let downloadStatusPendingMsg = null;
+      let downloadStatusPendingIsError = false;
+
+      // إدارة حالة الشرائح
+      let currentStep = 1;
+      const totalSteps = 3;
+
+      function updateStepIndicators() {
+        const indicators = document.querySelectorAll("[data-step-indicator]");
+        indicators.forEach((el) => {
+          const s = Number(el.getAttribute("data-step-indicator"));
+          el.classList.remove("active", "done");
+          if (s < currentStep) {
+            el.classList.add("done");
+          } else if (s === currentStep) {
+            el.classList.add("active");
+          }
+        });
+
+        // تحديث عرض الخط الأخضر حسب الخطوة الحالية
+        const stepsBar = document.querySelector(".wizard-steps");
+        if (stepsBar) {
+          let progress = 0;
+          if (currentStep === 1) {
+            progress = 33; // من 1 إلى منتصف الطريق
+          } else if (currentStep === 2) {
+            progress = 66; // يغطي حتى الخطوة 2
+          } else if (currentStep === 3) {
+            progress = 100; // يغطي كل الخطوات
+          }
+          stepsBar.style.setProperty("--wizard-progress", progress + "%");
+        }
+      }
+
+      function showStep(step) {
+        currentStep = step;
+        const cards = document.querySelectorAll(".step-card");
+        cards.forEach((card) => {
+          const s = Number(card.getAttribute("data-step"));
+          if (s === step) {
+            card.classList.remove("hidden");
+          } else {
+            card.classList.add("hidden");
+          }
+        });
+        updateStepIndicators();
+
+        const prevBtn = document.getElementById("prev-step");
+        if (prevBtn) {
+          prevBtn.disabled = currentStep === 1;
+        }
+      }
+
+      function setStatus(elId, msg, isError) {
+        const el = document.getElementById(elId);
+        el.textContent = msg || "";
+        el.style.color = isError ? "#e53935" : "#00897b";
+      }
+
+      // spinner للرفع فقط
+      function setLoading(type, on) {
+        const spinner = document.getElementById(type + "-loading");
+        const btn = document.getElementById(type + "-btn");
+        if (!spinner || !btn) return;
+        if (on) {
+          spinner.classList.remove("hidden");
+          btn.disabled = true;
+        } else {
+          spinner.classList.add("hidden");
+          btn.disabled = false;
+        }
+      }
+
+      // ===== progress bar للتحميل =====
+      function startDownloadProgress() {
+        const bar = document.getElementById("download-progress");
+        const inner = document.getElementById("download-progress-inner");
+        const text = document.getElementById("download-progress-text");
+        const btn = document.getElementById("download-btn");
+
+        downloadProgressCurrent = 0;
+        downloadFetchCompleted = false;
+        downloadStatusPendingMsg = null;
+        downloadStatusPendingIsError = false;
+
+        inner.style.width = "0%";
+        text.textContent = "0%";
+        bar.classList.remove("hidden");
+        btn.disabled = true;
+
+        if (downloadProgressInterval) {
+          clearInterval(downloadProgressInterval);
+        }
+
+        downloadProgressInterval = setInterval(() => {
+          if (!downloadFetchCompleted) {
+            if (downloadProgressCurrent < 80) {
+              downloadProgressCurrent += 5;
+              if (downloadProgressCurrent > 80) downloadProgressCurrent = 80;
+              inner.style.width = downloadProgressCurrent + "%";
+              text.textContent = Math.round(downloadProgressCurrent) + "%";
+            }
+          } else {
+            if (downloadProgressCurrent < 100) {
+              downloadProgressCurrent += 10;
+              if (downloadProgressCurrent > 100)
+                downloadProgressCurrent = 100;
+              inner.style.width = downloadProgressCurrent + "%";
+              text.textContent = Math.round(downloadProgressCurrent) + "%";
+            } else {
+              clearInterval(downloadProgressInterval);
+              downloadProgressInterval = null;
+              setTimeout(() => {
+                bar.classList.add("hidden");
+                btn.disabled = false;
+
+                if (downloadStatusPendingMsg !== null) {
+                  setStatus(
+                    "download-status",
+                    downloadStatusPendingMsg,
+                    downloadStatusPendingIsError
+                  );
+                  downloadStatusPendingMsg = null;
+                }
+              }, 150);
+            }
+          }
+        }, 120);
+      }
+
+      function markDownloadFetchCompleted() {
+        downloadFetchCompleted = true;
+      }
+
+      // ===== تلخيص الخطة للمعاينة =====
+      function summarizeProgram(p) {
+        const name = p.name || "برنامج #" + (p.pid ?? "?");
+        const enabled = !!p.en;
+        const start = p.start || "غير محدد";
+        const daysPattern = (p.days || "").toString();
+        let activeDays = 0;
+        for (let ch of daysPattern) {
+          if (ch === "1") activeDays++;
+        }
+        const zonesCount = Array.isArray(p.dur) ? p.dur.length : 0;
+        let totalSec = 0;
+        if (Array.isArray(p.dur)) {
+          for (let s of p.dur) {
+            const v = Number(s);
+            if (!isNaN(v)) totalSec += v;
+          }
+        }
+        const totalMin = Math.round(totalSec / 60);
+
+        return {
+          name,
+          enabled,
+          start,
+          activeDays,
+          zonesCount,
+          totalMin,
+          daysPattern,
+        };
+      }
+
+      function daysValidText(schedule) {
+        let days = 15;
+        try {
+          if (schedule.meta && typeof schedule.meta.days_valid === "number") {
+            days = schedule.meta.days_valid;
+          }
+        } catch (e) {}
+        return days;
+      }
+
+      function renderScheduleHuman(schedule) {
+        const container = document.getElementById("preview");
+        if (!container) return;
+
+        if (!schedule || typeof schedule !== "object") {
+          container.textContent = "لا توجد خطة مخزّنة حالياً في الجوال.";
+          return;
+        }
+
+        const days = daysValidText(schedule);
+        let html = "";
+
+        html += `<p class="info">هذه الخطة صالحة تقريباً لمدة <b>${days}</b> يوم قبل الانتقال للوضع الثابت.</p>`;
+
+        const programs = Array.isArray(schedule.programs)
+          ? schedule.programs
+          : [];
+        if (!programs.length) {
+          html += `<p class="info">لا توجد برامج ري في الخطة الحالية.</p>`;
+          container.innerHTML = html;
+          return;
+        }
+
+        for (const p of programs) {
+          const s = summarizeProgram(p);
+          html += `
+          <div class="program-card">
+            <div class="program-title">
+              ${s.name}
+              <span class="badge ${s.enabled ? "" : "off"}">
+                ${s.enabled ? "مفعّل" : "موقوف"}
+              </span>
+            </div>
+            <div class="program-meta">
+              • وقت تشغيل الري: <b>${s.start}</b><br>
+              • عدد أيام الري في الأسبوع: <b>${s.activeDays}</b> (نمط: ${
+            s.daysPattern || "غير محدد"
+          })<br>
+              • عدد خطوط الري في هذا البرنامج: <b>${s.zonesCount}</b><br>
+              • إجمالي زمن الري لكل دورة: <b>${s.totalMin}</b> دقيقة (تقريباً)
+            </div>
+          </div>
+        `;
+        }
+
+        html += `<div class="small-muted">هذه المعاينة لتطمين المزارع أن الأوقات والأيام وعدد الخطوط صحيحة قبل نقل الخطة للمزرعة.</div>`;
+
+        container.innerHTML = html;
+      }
+
+      function updatePreview() {
+        renderScheduleHuman(cachedSchedule);
+      }
+
+      function loadFromStorage() {
+        try {
+          const sText = localStorage.getItem(SCHEDULE_KEY);
+          if (sText) cachedSchedule = JSON.parse(sText);
+        } catch (e) {
+        cachedSchedule = null;
+        }
+        updatePreview();
+      }
+
+      function saveScheduleToStorage(obj) {
+        cachedSchedule = obj;
+        try {
+          localStorage.setItem(SCHEDULE_KEY, JSON.stringify(obj));
+        } catch (e) {
+          console.log("Failed to save schedule:", e);
+        }
+        updatePreview();
+      }
+
+      // تنزيل الخطة من حارث
+      document
+        .getElementById("download-btn")
+        .addEventListener("click", function () {
+          setStatus("download-status", "", false);
+          startDownloadProgress();
+
+          fetch("/api/schedule", { method: "GET" })
+            .then((res) => {
+              if (!res.ok) throw new Error("HTTP " + res.status);
+              return res.json();
+            })
+            .then((data) => {
+              saveScheduleToStorage(data);
+              downloadStatusPendingMsg =
+                "تم تنزيل الخطة من حارث بنجاح ويمكن نقلها الآن إلى مزرعتك بأمان.";
+              downloadStatusPendingIsError = false;
+            })
+            .catch((err) => {
+              downloadStatusPendingMsg =
+                "فشل تنزيل الخطة من حارث. تأكد أن السيرفر يعمل. التفاصيل: " +
+                err;
+              downloadStatusPendingIsError = true;
+            })
+            .finally(() => {
+              markDownloadFetchCompleted();
+            });
+        });
+
+      // رفع الخطة إلى نظام الري عبر /co
+      document
+        .getElementById("upload-btn")
+        .addEventListener("click", function () {
+          if (!cachedSchedule) {
+            setStatus(
+              "upload-status",
+              "لا توجد خطة مخزّنة في الجوال. قم بتنزيلها من حارث أولاً.",
+              true
+            );
+            return;
+          }
+
+          setStatus("upload-status", "جاري رفع الخطة إلى نظام الري...", false);
+          setLoading("upload", true);
+
+          const bodyText = JSON.stringify(cachedSchedule);
+
+          fetch("/co", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: bodyText,
+          })
+            .then((res) =>
+              res
+                .json()
+                .catch(() => ({ ok: false, raw: "لا توجد JSON في الاستجابة" }))
+            )
+            .then((data) => {
+              if (!data || data.ok !== true) {
+                setStatus(
+                  "upload-status",
+                  "استجابة غير متوقعة من السيرفر أثناء الرفع.",
+                  true
+                );
+                return;
+              }
+
+              let days = 15;
+              try {
+                if (
+                  cachedSchedule.meta &&
+                  typeof cachedSchedule.meta.days_valid === "number"
+                ) {
+                  days = cachedSchedule.meta.days_valid;
+                }
+              } catch (e) {}
+
+              let msg =
+                "تم رفع الخطة بنجاح إلى سيرفر نظام الري، " +
+                "وسيعمل الري بكفاءة لمدة " +
+                days +
+                " يوم ثم سينتقل للوضع الثابت.";
+
+              try {
+                if (data.os && data.os.error && !data.os.forwarded) {
+                  msg += "";
+                }
+              } catch (e) {}
+
+              setStatus("upload-status", msg, false);
+            })
+            .catch((err) => {
+              setStatus(
+                "upload-status",
+                "فشل الاتصال بسيرفر نظام الري من هذا الجهاز: " + err,
+                true
+              );
+            })
+            .finally(() => {
+              setLoading("upload", false);
+            });
+        });
+
+      // أزرار التنقل بين الخطوات
+      document.getElementById("prev-step").addEventListener("click", () => {
+        if (currentStep > 1) showStep(currentStep - 1);
+      });
+      document.getElementById("next-step").addEventListener("click", () => {
+        if (currentStep < totalSteps) showStep(currentStep + 1);
+      });
+
+      document.getElementById("prev-step-2").addEventListener("click", () => {
+        showStep(1);
+      });
+      document.getElementById("next-step-2").addEventListener("click", () => {
+        showStep(3);
+      });
+
+      document.getElementById("prev-step-3").addEventListener("click", () => {
+        showStep(2);
+      });
+      document
+        .getElementById("restart-wizard")
+        .addEventListener("click", () => {
+          showStep(1);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+
+      // تسجيل Service Worker للـ PWA
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker
+          .register("/static/harith_sw.js")
+          .catch((err) => console.log("SW registration failed:", err));
+      }
+
+      // تهيئة أولية
+      loadFromStorage();
+      showStep(1);
+    </script>
+  </body>
+</html>

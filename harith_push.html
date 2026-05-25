@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Harith Push - من حارث إلى OpenSprinkler</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #f5f5f5;
+      color: #222;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+    h1, h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+    label {
+      font-size: 14px;
+      display: block;
+      margin-bottom: 4px;
+    }
+    input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      margin: 4px 0 8px;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      direction: ltr;
+      text-align: left;
+    }
+    button {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 8px;
+      width: 100%;
+      background: #00897b;
+      color: #fff;
+    }
+    .info {
+      font-size: 14px;
+    }
+    .status {
+      margin-top: 8px;
+      font-size: 14px;
+    }
+    #preview {
+      font-size: 14px;
+    }
+    .program-card {
+      border-radius: 10px;
+      border: 1px solid #e0e0e0;
+      padding: 10px;
+      margin-bottom: 8px;
+      background: #fafafa;
+    }
+    .program-title {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .program-meta {
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      margin-right: 4px;
+      background: #e0f2f1;
+      color: #00695c;
+    }
+    .badge.off {
+      background: #ffebee;
+      color: #c62828;
+    }
+    .small-muted {
+      font-size: 12px;
+      color: #777;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Harith Push</h1>
+    <p class="info">
+      هذه الصفحة تربط بين:
+      <br>1) سيرفر حارث (البيت/المكتب)
+      <br>2) سيرفر OpenSprinkler Proxy في المزرعة
+      <br><br>
+      الخطوات:
+      <br>- في البيت: أدخل رابط حارث واضغط <b>تنزيل الخطة من حارث</b>.
+      <br>- في المزرعة: أدخل رابط OpenSprinkler واضغط <b>رفع الخطة إلى OpenSprinkler</b>.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>1. تنزيل الخطة من حارث</h2>
+    <label for="harith-url">رابط حارث (البيت) بدون / في النهاية:</label>
+    <input id="harith-url" type="text" placeholder="مثال: http://10.0.0.5:8000" />
+    <button id="download-btn">تنزيل الخطة من حارث</button>
+    <div id="download-status" class="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. رفع الخطة إلى OpenSprinkler</h2>
+    <label for="os-url">رابط السيرفر الثاني (OpenSprinkler Proxy) بدون / في النهاية:</label>
+    <input id="os-url" type="text" placeholder="مثال: http://192.168.43.10:8000" />
+    <button id="upload-btn">رفع الخطة إلى OpenSprinkler</button>
+    <div id="upload-status" class="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>معاينة سريعة للخطة المخزّنة في الجوال (مفهومة للمزارع)</h2>
+    <div id="preview"></div>
+  </div>
+
+  <script>
+    const SCHEDULE_KEY = "harith_os_cached_schedule_v1";
+    const HARITH_URL_KEY = "harith_url_saved";
+    const OS_URL_KEY = "os_url_saved";
+
+    let cachedSchedule = null;
+
+    function setStatus(elId, msg, isError) {
+      const el = document.getElementById(elId);
+      el.textContent = msg;
+      el.style.color = isError ? "#e53935" : "#00897b";
+    }
+
+    function summarizeProgram(p) {
+      const name = p.name || ("برنامج #" + (p.pid ?? "?"));
+      const enabled = !!p.en;
+      const start = p.start || "غير محدد";
+      const daysPattern = (p.days || "").toString();
+      let activeDays = 0;
+      for (let ch of daysPattern) {
+        if (ch === "1") activeDays++;
+      }
+      const zonesCount = Array.isArray(p.dur) ? p.dur.length : 0;
+      let totalSec = 0;
+      if (Array.isArray(p.dur)) {
+        for (let s of p.dur) {
+          const v = Number(s);
+          if (!isNaN(v)) totalSec += v;
+        }
+      }
+      const totalMin = Math.round(totalSec / 60);
+
+      return {
+        name,
+        enabled,
+        start,
+        activeDays,
+        zonesCount,
+        totalMin,
+        daysPattern
+      };
+    }
+
+    function daysValidText(schedule) {
+      let days = 15;
+      try {
+        if (schedule.meta && typeof schedule.meta.days_valid === "number") {
+          days = schedule.meta.days_valid;
+        }
+      } catch (e) {}
+      return days;
+    }
+
+    function renderScheduleHuman(schedule) {
+      const container = document.getElementById("preview");
+      if (!schedule || typeof schedule !== "object") {
+        container.textContent = "لا توجد خطة مخزّنة حالياً في الجوال.";
+        return;
+      }
+
+      const days = daysValidText(schedule);
+      let html = "";
+
+      html += `<p class="info">هذه الخطة صالحة تقريباً لمدة <b>${days}</b> يوم قبل الانتقال للوضع الثابت.</p>`;
+
+      const programs = Array.isArray(schedule.programs) ? schedule.programs : [];
+      if (!programs.length) {
+        html += `<p class="info">لا توجد برامج ري في الخطة الحالية.</p>`;
+        container.innerHTML = html;
+        return;
+      }
+
+      for (const p of programs) {
+        const s = summarizeProgram(p);
+        html += `
+          <div class="program-card">
+            <div class="program-title">
+              ${s.name}
+              <span class="badge ${s.enabled ? "" : "off"}">
+                ${s.enabled ? "مفعّل" : "موقوف"}
+              </span>
+            </div>
+            <div class="program-meta">
+              • وقت تشغيل الري: <b>${s.start}</b><br>
+              • عدد أيام الري في الأسبوع: <b>${s.activeDays}</b> (نمط: ${s.daysPattern || "غير محدد"})<br>
+              • عدد المناطق (الخطوط) في هذا البرنامج: <b>${s.zonesCount}</b><br>
+              • إجمالي زمن الري لكل دورة: <b>${s.totalMin}</b> دقيقة (تقريباً)
+            </div>
+          </div>
+        `;
+      }
+
+      html += `<div class="small-muted">هذه المعاينة لتطمين المزارع أن الأوقات والأيام وعدد الخطوط صحيحة قبل نقل الخطة للمزرعة.</div>`;
+
+      container.innerHTML = html;
+    }
+
+    function updatePreview() {
+      renderScheduleHuman(cachedSchedule);
+    }
+
+    function loadFromStorage() {
+      try {
+        const sText = localStorage.getItem(SCHEDULE_KEY);
+        if (sText) {
+          cachedSchedule = JSON.parse(sText);
+        }
+      } catch (e) {
+        cachedSchedule = null;
+      }
+
+      try {
+        const hUrl = localStorage.getItem(HARITH_URL_KEY);
+        if (hUrl) document.getElementById("harith-url").value = hUrl;
+      } catch (e) {}
+      try {
+        const oUrl = localStorage.getItem(OS_URL_KEY);
+        if (oUrl) document.getElementById("os-url").value = oUrl;
+      } catch (e) {}
+
+      updatePreview();
+    }
+
+    function saveScheduleToStorage(obj) {
+      cachedSchedule = obj;
+      try {
+        localStorage.setItem(SCHEDULE_KEY, JSON.stringify(obj));
+      } catch (e) {
+        console.log("Failed to save schedule:", e);
+      }
+      updatePreview();
+    }
+
+    document.getElementById("download-btn").addEventListener("click", function () {
+      const rawUrl = document.getElementById("harith-url").value.trim();
+      if (!rawUrl) {
+        setStatus("download-status", "الرجاء إدخال رابط حارث أولاً.", true);
+        return;
+      }
+      const base = rawUrl.replace(/\/+$/, "");
+      const url = base + "/api/schedule";
+
+      try {
+        localStorage.setItem(HARITH_URL_KEY, base);
+      } catch (e) {}
+
+      setStatus("download-status", "جاري تنزيل الخطة من حارث...", false);
+
+      fetch(url, { method: "GET" })
+        .then(res => {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        })
+        .then(data => {
+          saveScheduleToStorage(data);
+          setStatus(
+            "download-status",
+            "تم تنزيل الخطة من حارث بنجاح ويمكن نقلها الآن إلى مزرعتك بأمان.",
+            false
+          );
+        })
+        .catch(err => {
+          setStatus("download-status", "فشل تنزيل الخطة من حارث: " + err, true);
+        });
+    });
+
+    document.getElementById("upload-btn").addEventListener("click", function () {
+      const rawUrl = document.getElementById("os-url").value.trim();
+      if (!rawUrl) {
+        setStatus("upload-status", "الرجاء إدخال رابط OpenSprinkler Proxy أولاً.", true);
+        return;
+      }
+      if (!cachedSchedule) {
+        setStatus("upload-status", "لا توجد خطة مخزّنة في الجوال. قم بتنزيلها من حارث أولاً.", true);
+        return;
+      }
+
+      const base = rawUrl.replace(/\/+$/, "");
+      const url = base + "/co";
+
+      try {
+        localStorage.setItem(OS_URL_KEY, base);
+      } catch (e) {}
+
+      setStatus("upload-status", "جاري رفع الخطة إلى OpenSprinkler...", false);
+
+      const bodyText = JSON.stringify(cachedSchedule);
+
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: bodyText
+      })
+        .then(res => res.json().catch(() => ({ raw: "لا توجد JSON في الاستجابة" })))
+        .then(data => {
+          if (data.error) {
+            setStatus("upload-status", "خطأ من السيرفر: " + data.error, true);
+            return;
+          }
+          let days = 15;
+          try {
+            if (cachedSchedule.meta && typeof cachedSchedule.meta.days_valid === "number") {
+              days = cachedSchedule.meta.days_valid;
+            }
+          } catch (e) {}
+
+          const msg =
+            "تم رفع الخطة بنجاح، سيعمل الري بكفاءة لمدة " +
+            days +
+            " يوم ثم سينتقل للوضع الثابت.";
+
+          setStatus("upload-status", msg, false);
+        })
+        .catch(err => {
+          setStatus("upload-status", "فشل الاتصال بـ OpenSprinkler Proxy: " + err, true);
+        });
+    });
+
+    loadFromStorage();
+  </script>
+</body>
+</html>

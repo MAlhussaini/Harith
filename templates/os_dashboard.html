@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard - Harith OpenSprinkler Proxy</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #f5f5f5;
+      color: #222;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+    h1, h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+    .info {
+      font-size: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 6px;
+      text-align: center;
+    }
+    th {
+      background: #eeeeee;
+    }
+    .muted {
+      font-size: 12px;
+      color: #777;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Dashboard - Harith OpenSprinkler Proxy</h1>
+    <p class="info">
+      هذه الواجهة تعرض آخر خطة ري استقبلها السيرفر من صفحة المزارع (Harith Farmer).
+      يتم تحديث البيانات تلقائيًا كل 10 ثوانٍ تقريبًا.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>ملخص آخر خطة (last_schedule.json)</h2>
+    <p class="info" id="last-updated-text">
+      آخر تحديث للخطة: —
+    </p>
+    <p class="info">
+      عدد البرامج: <b id="programs-count">0</b>
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>pid</th>
+          <th>الاسم</th>
+          <th>مفعّل؟</th>
+          <th>وقت البدء</th>
+          <th>الأيام</th>
+          <th>عدد مدد الري</th>
+        </tr>
+      </thead>
+      <tbody id="programs-table-body">
+        <tr><td colspan="6">لا توجد بيانات بعد.</td></tr>
+      </tbody>
+    </table>
+
+    <p class="muted">
+      هذه الشاشة تُستخدم فقط لعرض أن الخطة وصلت من جوال المزارع بنجاح،
+      ولا تحاول الاتصال بأي جهاز حقيقي في هذه النسخة التجريبية (MVP).
+    </p>
+  </div>
+
+  <script>
+    function renderDashboard(data) {
+      const lastUpdatedEl = document.getElementById("last-updated-text");
+      const countEl = document.getElementById("programs-count");
+      const tbody = document.getElementById("programs-table-body");
+
+      const lastUpdated = data.last_updated || "لم يتم استلام أي خطة بعد.";
+      lastUpdatedEl.innerHTML = "آخر تحديث للخطة: <b>" + lastUpdated + "</b>";
+
+      const summary = data.last_summary || { programs_count: 0, programs: [] };
+      const programs = Array.isArray(summary.programs) ? summary.programs : [];
+      countEl.textContent = summary.programs_count || programs.length || 0;
+
+      if (!programs.length) {
+        tbody.innerHTML = '<tr><td colspan="6">لا توجد برامج في الخطة الحالية.</td></tr>';
+      } else {
+        let rows = "";
+        programs.forEach(p => {
+          const pid = (p.pid !== undefined && p.pid !== null) ? p.pid : "";
+          const name = p.name || "-";
+          const en = p.en ? "نعم" : "لا";
+          const start = p.start || "-";
+          const days = p.days || "-";
+          const durLen = p.dur_len || 0;
+
+          rows += `
+            <tr>
+              <td>${pid}</td>
+              <td>${name}</td>
+              <td>${en}</td>
+              <td>${start}</td>
+              <td>${days}</td>
+              <td>${durLen}</td>
+            </tr>
+          `;
+        });
+        tbody.innerHTML = rows;
+      }
+    }
+
+    function fetchDashboardData() {
+      fetch("/os/dashboard_data")
+        .then(res => res.json())
+        .then(data => {
+          renderDashboard(data);
+        })
+        .catch(err => {
+          console.log("Error fetching /os/dashboard_data:", err);
+        });
+    }
+
+    fetchDashboardData();
+    setInterval(fetchDashboardData, 10000);
+  </script>
+</body>
+</html>

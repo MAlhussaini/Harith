@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>التقرير التشغيلي للري – حارث</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      color: #222;
+    }
+    header {
+      padding: 12px 16px;
+      background: #00897b;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 18px;
+    }
+    header button {
+      border: none;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 14px;
+      cursor: pointer;
+      background: #ffffff;
+      color: #00695c;
+    }
+    .page-body {
+      padding: 12px 12px 0;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+
+    /* كرت اللودينغ */
+    .loading-card {
+      text-align: center;
+    }
+    .loading-title {
+      font-size: 18px;
+      margin-bottom: 6px;
+    }
+    .loading-sub {
+      font-size: 14px;
+      color: #555;
+      margin-bottom: 12px;
+    }
+    .loading-ai {
+      font-size: 13px;
+      color: #777;
+    }
+    .loading-spinner {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 3px solid #ccc;
+      border-top-color: #00897b;
+      margin: 10px auto 6px;
+      animation: spin 0.8s linear infinite;
+    }
+    .loading-dots {
+      font-size: 14px;
+      color: #00897b;
+      letter-spacing: 2px;
+      height: 18px;
+    }
+
+    /* كرت الـ PDF */
+    .pdf-card {
+      padding: 0;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .pdf-wrapper {
+      width: 100%;
+      height: calc(100vh - 80px); /* تقريبا الشاشة ناقص الهيدر */
+      background: #e0e0e0;
+    }
+    .pdf-wrapper iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #fff;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (min-width: 768px) {
+      .page-body {
+        padding: 16px 24px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>التقرير التشغيلي للري</h1>
+    <button onclick="window.location.href='{{ url_for('farmer_page') }}'">
+      ⬅ العودة لصفحة المزارع
+    </button>
+  </header>
+
+  <div class="page-body">
+    <!-- كرت اللودينغ -->
+    <div id="loading-card" class="card loading-card">
+      <div class="loading-title">جالسين نجهز لك التقرير…</div>
+      <div class="loading-sub">الرجاء الانتظار لحظات حتى يكتمل تجهيز وعرض الملف.</div>
+      <div class="loading-spinner"></div>
+      <div class="loading-dots" id="loading-dots">···</div>
+      <div class="loading-ai">الـ AI Agent يحوّل بيانات الري إلى ملف PDF جاهز للعرض 🌿</div>
+    </div>
+
+    <!-- كرت الـ PDF (مخفي إلى أن يجهز) -->
+    <div id="pdf-card" class="card pdf-card hidden">
+      <div class="pdf-wrapper">
+        <iframe
+          id="report-frame"
+          src="{{ url_for('static', filename='reports/irrigation_operational_report.pdf') }}#toolbar=1&navpanes=0"
+          title="التقرير التشغيلي للري">
+        </iframe>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // تحريك النقاط "···" بشكل بسيط
+    const dotsEl = document.getElementById("loading-dots");
+    let dotsState = 0;
+    setInterval(() => {
+      dotsState = (dotsState + 1) % 4;
+      dotsEl.textContent = "·".repeat(dotsState || 3);
+    }, 400);
+
+    function showPdfCard() {
+      const loading = document.getElementById("loading-card");
+      const pdfCard = document.getElementById("pdf-card");
+      if (!loading || !pdfCard) return;
+
+      loading.classList.add("hidden");
+      pdfCard.classList.remove("hidden");
+    }
+
+    // لما يجهز تحميل الـ PDF داخل iframe
+    const iframe = document.getElementById("report-frame");
+    iframe.addEventListener("load", () => {
+      // نضيف تأخير بسيط عشان يعطي إحساس تحضير
+      setTimeout(showPdfCard, 3000);
+    });
+
+    // احتياط: لو صار شيء وما نادى load (نادرًا)، نظهره بعد 6 ثواني
+    setTimeout(() => {
+      const pdfCardVisible = !document.getElementById("pdf-card").classList.contains("hidden");
+      if (!pdfCardVisible) {
+        showPdfCard();
+      }
+    }, 6000);
+  </script>
+</body>
+</html>

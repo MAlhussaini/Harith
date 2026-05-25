@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Harith – صفحة المزارع</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="/static/harith_manifest.json">
+  <meta name="theme-color" content="#00897b">
+
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #f5f5f5;
+      color: #222;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    }
+    h1, h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+    button {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 8px;
+      width: 100%;
+      background: #00897b;
+      color: #fff;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
+    .info { font-size: 14px; }
+    .status {
+      margin-top: 8px;
+      font-size: 14px;
+      min-height: 20px;
+    }
+    .program-card {
+      border-radius: 10px;
+      border: 1px solid #e0e0e0;
+      padding: 10px;
+      margin-bottom: 8px;
+      background: #fafafa;
+    }
+    .program-title {
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .program-meta {
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      margin-right: 4px;
+      background: #e0f2f1;
+      color: #00695c;
+    }
+    .badge.off {
+      background: #ffebee;
+      color: #c62828;
+    }
+    .small-muted {
+      font-size: 12px;
+      color: #777;
+      margin-top: 4px;
+    }
+
+    /* loading animation */
+    .loading-wrapper {
+      margin-top: 8px;
+      text-align: center;
+      min-height: 30px;
+    }
+    .loading {
+      display: inline-block;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 3px solid #ccc;
+      border-top-color: #00897b;
+      animation: spin 0.8s linear infinite;
+    }
+    .hidden {
+      display: none;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Harith – صفحة المزارع</h1>
+    <p class="info">
+      هذه الصفحة تحفظ لك خطة الري من حارث وتوصلها لنظام الري (OpenSprinkler).
+      لا تحتاج إدخال أي رقم أو إعدادات.
+    </p>
+    <p class="info">
+      <b>الخطوات:</b><br>
+      1) في البيت/المكتب: اضغط <b>تنزيل الخطة من حارث</b>.<br>
+      2) في المزرعة: اضغط <b>رفع الخطة إلى نظام الري</b> فقط.
+    </p>
+    <p class="small-muted">
+      الخطة تحفظ داخل الجوال، ويمكنك رفعها لاحقًا حتى لو خرجت من الصفحة.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>1. تنزيل الخطة من حارث</h2>
+    <button id="download-btn">تنزيل الخطة من حارث</button>
+    <div class="loading-wrapper">
+      <span id="download-loading" class="loading hidden"></span>
+    </div>
+    <div id="download-status" class="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. رفع الخطة إلى نظام الري</h2>
+    <button id="upload-btn">رفع الخطة إلى نظام الري</button>
+    <div class="loading-wrapper">
+      <span id="upload-loading" class="loading hidden"></span>
+    </div>
+    <div id="upload-status" class="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>معاينة سريعة للخطة المخزَّنة في الجوال</h2>
+    <div id="preview"></div>
+  </div>
+
+  <script>
+    const SCHEDULE_KEY = "harith_os_cached_schedule_v1";
+
+    let cachedSchedule = null;
+
+    function setStatus(elId, msg, isError) {
+      const el = document.getElementById(elId);
+      el.textContent = msg || "";
+      el.style.color = isError ? "#e53935" : "#00897b";
+    }
+
+    function setLoading(type, on) {
+      const spinner = document.getElementById(type + "-loading");
+      const btn = document.getElementById(type + "-btn");
+      if (on) {
+        spinner.classList.remove("hidden");
+        btn.disabled = true;
+      } else {
+        spinner.classList.add("hidden");
+        btn.disabled = false;
+      }
+    }
+
+    function summarizeProgram(p) {
+      const name = p.name || ("برنامج #" + (p.pid ?? "?"));
+      const enabled = !!p.en;
+      const start = p.start || "غير محدد";
+      const daysPattern = (p.days || "").toString();
+      let activeDays = 0;
+      for (let ch of daysPattern) {
+        if (ch === "1") activeDays++;
+      }
+      const zonesCount = Array.isArray(p.dur) ? p.dur.length : 0;
+      let totalSec = 0;
+      if (Array.isArray(p.dur)) {
+        for (let s of p.dur) {
+          const v = Number(s);
+          if (!isNaN(v)) totalSec += v;
+        }
+      }
+      const totalMin = Math.round(totalSec / 60);
+
+      return {
+        name,
+        enabled,
+        start,
+        activeDays,
+        zonesCount,
+        totalMin,
+        daysPattern
+      };
+    }
+
+    function daysValidText(schedule) {
+      let days = 15;
+      try {
+        if (schedule.meta && typeof schedule.meta.days_valid === "number") {
+          days = schedule.meta.days_valid;
+        }
+      } catch (e) {}
+      return days;
+    }
+
+    function renderScheduleHuman(schedule) {
+      const container = document.getElementById("preview");
+      if (!schedule || typeof schedule !== "object") {
+        container.textContent = "لا توجد خطة مخزّنة حالياً في الجوال.";
+        return;
+      }
+
+      const days = daysValidText(schedule);
+      let html = "";
+
+      html += `<p class="info">هذه الخطة صالحة تقريباً لمدة <b>${days}</b> يوم قبل الانتقال للوضع الثابت.</p>`;
+
+      const programs = Array.isArray(schedule.programs) ? schedule.programs : [];
+      if (!programs.length) {
+        html += `<p class="info">لا توجد برامج ري في الخطة الحالية.</p>`;
+        container.innerHTML = html;
+        return;
+      }
+
+      for (const p of programs) {
+        const s = summarizeProgram(p);
+        html += `
+          <div class="program-card">
+            <div class="program-title">
+              ${s.name}
+              <span class="badge ${s.enabled ? "" : "off"}">
+                ${s.enabled ? "مفعّل" : "موقوف"}
+              </span>
+            </div>
+            <div class="program-meta">
+              • وقت تشغيل الري: <b>${s.start}</b><br>
+              • عدد أيام الري في الأسبوع: <b>${s.activeDays}</b> (نمط: ${s.daysPattern || "غير محدد"})<br>
+              • عدد خطوط الري في هذا البرنامج: <b>${s.zonesCount}</b><br>
+              • إجمالي زمن الري لكل دورة: <b>${s.totalMin}</b> دقيقة (تقريباً)
+            </div>
+          </div>
+        `;
+      }
+
+      html += `<div class="small-muted">هذه المعاينة لتطمين المزارع أن الأوقات والأيام وعدد الخطوط صحيحة قبل نقل الخطة للمزرعة.</div>`;
+
+      container.innerHTML = html;
+    }
+
+    function updatePreview() {
+      renderScheduleHuman(cachedSchedule);
+    }
+
+    function loadFromStorage() {
+      try {
+        const sText = localStorage.getItem(SCHEDULE_KEY);
+        if (sText) cachedSchedule = JSON.parse(sText);
+      } catch (e) {
+        cachedSchedule = null;
+      }
+      updatePreview();
+    }
+
+    function saveScheduleToStorage(obj) {
+      cachedSchedule = obj;
+      try {
+        localStorage.setItem(SCHEDULE_KEY, JSON.stringify(obj));
+      } catch (e) {
+        console.log("Failed to save schedule:", e);
+      }
+      updatePreview();
+    }
+
+    // زر تنزيل الخطة من حارث (نفس السيرفر الموحد)
+    document.getElementById("download-btn").addEventListener("click", function () {
+      setStatus("download-status", "جاري تنزيل الخطة من حارث...", false);
+      setLoading("download", true);
+
+      fetch("/api/schedule", { method: "GET" })
+        .then(res => {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        })
+        .then(data => {
+          saveScheduleToStorage(data);
+          setStatus(
+            "download-status",
+            "تم تنزيل الخطة من حارث بنجاح ويمكن نقلها الآن إلى مزرعتك بأمان.",
+            false
+          );
+        })
+        .catch(err => {
+          setStatus(
+            "download-status",
+            "فشل تنزيل الخطة من حارث. تأكد أن السيرفر يعمل. التفاصيل: " + err,
+            true
+          );
+        })
+        .finally(() => {
+          setLoading("download", false);
+        });
+    });
+
+    // زر رفع الخطة إلى نظام الري عبر /co في نفس السيرفر
+    document.getElementById("upload-btn").addEventListener("click", function () {
+      if (!cachedSchedule) {
+        setStatus("upload-status", "لا توجد خطة مخزّنة في الجوال. قم بتنزيلها من حارث أولاً.", true);
+        return;
+      }
+
+      setStatus("upload-status", "جاري رفع الخطة إلى نظام الري...", false);
+      setLoading("upload", true);
+
+      const bodyText = JSON.stringify(cachedSchedule);
+
+      fetch("/co", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: bodyText
+      })
+        .then(res => res.json().catch(() => ({ raw: "لا توجد JSON في الاستجابة" })))
+        .then(data => {
+          if (data.error) {
+            setStatus("upload-status", "خطأ من السيرفر: " + data.error, true);
+            return;
+          }
+          let days = 15;
+          try {
+            if (cachedSchedule.meta && typeof cachedSchedule.meta.days_valid === "number") {
+              days = cachedSchedule.meta.days_valid;
+            }
+          } catch (e) {}
+
+          const msg =
+            "تم رفع الخطة بنجاح، سيعمل الري بكفاءة لمدة " +
+            days +
+            " يوم ثم سينتقل للوضع الثابت.";
+
+          setStatus("upload-status", msg, false);
+        })
+        .catch(err => {
+          setStatus("upload-status", "فشل الاتصال بنظام الري من هذا السيرفر: " + err, true);
+        })
+        .finally(() => {
+          setLoading("upload", false);
+        });
+    });
+
+    // تسجيل Service Worker للـ PWA
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/static/harith_sw.js")
+        .catch(err => console.log("SW registration failed:", err));
+    }
+
+    loadFromStorage();
+  </script>
+</body>
+</html>

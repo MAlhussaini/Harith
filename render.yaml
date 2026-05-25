@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: harith
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn harith_server:app
+    envVars:
+      - key: OS_BASE_URL
+        value: http://192.168.1.50
+      - key: OS_PASSWORD
+        generateValue: false

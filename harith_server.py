@@ -315,6 +315,7 @@ def os_dashboard_data():
 
 @app.route("/os/dashboard", methods=["GET"])
 def os_dashboard():
+    return render_template("opensprinkler_harith_controller.html")
     return render_template("os_dashboard.html")
 
 

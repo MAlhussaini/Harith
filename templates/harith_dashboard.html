@@ -178,6 +178,19 @@
     </p>
   </div>
 
+  <!-- ===== محطات OpenSprinkler المباشرة ===== -->
+  <div class="card">
+    <h2>📡 محطات OpenSprinkler المباشرة</h2>
+    <p class="info">
+      بيانات مباشرة من الجهاز عبر الشبكة المحلية. يمكنك تسمية المحطات وتشغيلها يدوياً للاختبار.
+    </p>
+    <button type="button" id="refresh-stations-btn" class="small" style="width:auto;padding:8px 16px;">🔄 تحديث الحالة</button>
+    <div id="stations-error" class="s
+    tatus error" style="display:none;margin-top:8px;"></div>
+    <div id="stations-loading" style="display:none;margin-top:8px;font-size:14px;color:#777;">⏳ جاري التحميل...</div>
+    <div id="stations-grid" style="margin-top:12px;overflow-x:auto;"></div>
+  </div>
+
   <form id="schedule-form" method="POST" action="/harith/dashboard" style="display:none;">
     <input type="hidden" name="schedule_json" id="schedule-json-input" />
   </form>
@@ -342,6 +355,165 @@
 
     loadMetaToUI();
     renderPrograms();
+
+    // ===== إدارة محطات OpenSprinkler =====
+    let osStationsData = null;
+    let osLiveData = null;
+
+    function isStationRunning(sid) {
+      if (!osLiveData || !Array.isArray(osLiveData.sbits)) return false;
+      const byteIdx = Math.floor(sid / 8);
+      const bitIdx = sid % 8;
+      if (byteIdx >= osLiveData.sbits.length) return false;
+      return (osLiveData.sbits[byteIdx] & (1 << bitIdx)) !== 0;
+    }
+
+    function renderStationsGrid() {
+      const grid = document.getElementById("stations-grid");
+      if (!osStationsData || !Array.isArray(osStationsData.snames)) {
+        grid.innerHTML = "<p class='info'>لا توجد بيانات محطات.</p>";
+        return;
+      }
+      const snames = osStationsData.snames;
+      let html = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:#e0f2f1;">
+            <th style="padding:8px;border:1px solid #ddd;">المحطة</th>
+            <th style="padding:8px;border:1px solid #ddd;">الحالة</th>
+            <th style="padding:8px;border:1px solid #ddd;">الاسم</th>
+            <th style="padding:8px;border:1px solid #ddd;">تشغيل يدوي</th>
+            <th style="padding:8px;border:1px solid #ddd;">إيقاف</th>
+          </tr>
+        </thead><tbody>`;
+      snames.forEach((name, sid) => {
+        const running = isStationRunning(sid);
+        const rowBg = running ? "#e8f5e9" : "#fafafa";
+        const badge = running
+          ? `<span class="badge" style="background:#c8e6c9;color:#1b5e20;">🟢 يعمل</span>`
+          : `<span class="badge off">⚫ متوقف</span>`;
+        html += `
+          <tr style="background:${rowBg};">
+            <td style="padding:8px;border:1px solid #ddd;font-weight:bold;text-align:center;">
+              S${String(sid + 1).padStart(2, "0")}
+            </td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:center;">${badge}</td>
+            <td style="padding:8px;border:1px solid #ddd;">
+              <input type="text" class="station-name-input" data-sid="${sid}"
+                value="${name.replace(/"/g, "&quot;")}"
+                style="width:100%;box-sizing:border-box;padding:4px;border:1px solid #ccc;border-radius:6px;font-size:13px;" />
+              <button type="button" class="small" onclick="renameStation(${sid})"
+                style="margin-top:4px;width:100%;">✏️ حفظ الاسم</button>
+            </td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:center;min-width:110px;">
+              <div style="display:flex;align-items:center;gap:4px;justify-content:center;">
+                <input type="number" id="run-time-${sid}" min="1" max="120" value="5"
+                  style="width:48px;padding:4px;border:1px solid #ccc;border-radius:6px;font-size:13px;" />
+                <span style="font-size:11px;white-space:nowrap;">دقيقة</span>
+              </div>
+              <button type="button" class="small" onclick="runStation(${sid})"
+                style="margin-top:4px;width:100%;background:#2e7d32;color:#fff;">▶ تشغيل</button>
+            </td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:center;">
+              <button type="button" class="small danger" onclick="stopStation(${sid})"
+                style="width:100%;">⏹ إيقاف</button>
+            </td>
+          </tr>`;
+      });
+      html += `</tbody></table>`;
+      grid.innerHTML = html;
+    }
+
+    async function fetchOsStations() {
+      const errEl = document.getElementById("stations-error");
+      const loadEl = document.getElementById("stations-loading");
+      errEl.style.display = "none";
+      loadEl.style.display = "block";
+      try {
+        const [stRes, liveRes] = await Promise.all([
+          fetch("/api/os/stations"),
+          fetch("/api/os/live")
+        ]);
+        if (!stRes.ok) throw new Error("HTTP " + stRes.status);
+        osStationsData = await stRes.json();
+        if (osStationsData.error) throw new Error(osStationsData.error);
+        if (liveRes.ok) {
+          osLiveData = await liveRes.json();
+        }
+        loadEl.style.display = "none";
+        renderStationsGrid();
+      } catch (err) {
+        loadEl.style.display = "none";
+        errEl.textContent = "تعذر الاتصال بـ OpenSprinkler: " + err.message;
+        errEl.style.display = "block";
+      }
+    }
+
+    async function renameStation(sid) {
+      const input = document.querySelector(`.station-name-input[data-sid="${sid}"]`);
+      if (!input) return;
+      const sname = input.value.trim();
+      if (!sname) return;
+      try {
+        const r = await fetch("/api/os/rename", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sid, sname })
+        });
+        const data = await r.json();
+        if (data.result === 1) {
+          alert(`✅ تم تغيير اسم S${String(sid+1).padStart(2,"0")} إلى "${sname}".`);
+        } else {
+          alert("استجابة غير متوقعة: " + JSON.stringify(data));
+        }
+      } catch (err) {
+        alert("فشل تغيير الاسم: " + err.message);
+      }
+    }
+
+    async function runStation(sid) {
+      const timeInput = document.getElementById(`run-time-${sid}`);
+      const minutes = parseInt(timeInput ? timeInput.value : 5, 10);
+      const seconds = minutes * 60;
+      try {
+        const r = await fetch("/api/os/run", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sid, time: seconds })
+        });
+        const data = await r.json();
+        if (data.result === 1) {
+          alert(`✅ بدأ تشغيل S${String(sid+1).padStart(2,"0")} لمدة ${minutes} دقيقة.`);
+          setTimeout(fetchOsStations, 1500);
+        } else {
+          alert("استجابة غير متوقعة: " + JSON.stringify(data));
+        }
+      } catch (err) {
+        alert("فشل تشغيل المحطة: " + err.message);
+      }
+    }
+
+    async function stopStation(sid) {
+      try {
+        const r = await fetch("/api/os/stop", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sid })
+        });
+        const data = await r.json();
+        if (data.result === 1) {
+          alert(`✅ تم إيقاف S${String(sid+1).padStart(2,"0")}.`);
+          setTimeout(fetchOsStations, 1000);
+        } else {
+          alert("استجابة غير متوقعة: " + JSON.stringify(data));
+        }
+      } catch (err) {
+        alert("فشل الإيقاف: " + err.message);
+      }
+    }
+
+    document.getElementById("refresh-stations-btn").addEventListener("click", fetchOsStations);
+    fetchOsStations();
+    setInterval(fetchOsStations, 15000);
   </script>
 </body>
 </html>

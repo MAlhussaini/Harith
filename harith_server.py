@@ -46,7 +46,7 @@ DEFAULT_SCHEDULE = {
 
 # ================= إعدادات OpenSprinkler Proxy =================
 
-OS_BASE_URL = os.environ.get("OS_BASE_URL", "http://192.168.1.50")
+OS_BASE_URL = os.environ.get("OS_BASE_URL", "http://192.168.100.30")
 OS_PASSWORD = os.environ.get("OS_PASSWORD", "opendoor")
 REQUEST_TIMEOUT = 5
 LAST_SCHEDULE_FILE = "last_schedule.json"
@@ -316,6 +316,90 @@ def os_dashboard_data():
 @app.route("/os/dashboard", methods=["GET"])
 def os_dashboard():
     return render_template("os_dashboard.html")
+
+
+# ================= إدارة محطات OpenSprinkler =================
+
+@app.route("/api/os/stations", methods=["GET"])
+def api_os_stations():
+    """جلب أسماء وحالة المحطات من OpenSprinkler /js"""
+    try:
+        r = requests.get(os_url("/js"), params={"pw": get_md5_pw()}, timeout=REQUEST_TIMEOUT)
+        return make_response(r.content, r.status_code)
+    except Exception as e:
+        return jsonify({"error": f"فشل الاتصال بـ OpenSprinkler: {e}"}), 502
+
+
+@app.route("/api/os/live", methods=["GET"])
+def api_os_live():
+    """جلب الحالة المباشرة للتحكم من OpenSprinkler /jc"""
+    try:
+        r = requests.get(os_url("/jc"), params={"pw": get_md5_pw()}, timeout=REQUEST_TIMEOUT)
+        return make_response(r.content, r.status_code)
+    except Exception as e:
+        return jsonify({"error": f"فشل الاتصال بـ OpenSprinkler: {e}"}), 502
+
+
+@app.route("/api/os/rename", methods=["POST"])
+def api_os_rename():
+    """إعادة تسمية محطة. Body: {sid: N, sname: 'اسم جديد'}"""
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"error": "JSON مطلوب"}), 400
+    sid = body.get("sid")
+    sname = body.get("sname", "")
+    if sid is None:
+        return jsonify({"error": "sid مطلوب"}), 400
+    try:
+        r = requests.get(
+            os_url("/cs"),
+            params={"pw": get_md5_pw(), "sid": sid, "sname": sname},
+            timeout=REQUEST_TIMEOUT
+        )
+        return make_response(r.content, r.status_code)
+    except Exception as e:
+        return jsonify({"error": f"فشل الاتصال بـ OpenSprinkler: {e}"}), 502
+
+
+@app.route("/api/os/run", methods=["POST"])
+def api_os_run():
+    """تشغيل محطة يدوياً. Body: {sid: N, time: seconds}"""
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"error": "JSON مطلوب"}), 400
+    sid = body.get("sid")
+    t = int(body.get("time", 60))
+    if sid is None:
+        return jsonify({"error": "sid مطلوب"}), 400
+    try:
+        r = requests.get(
+            os_url("/cm"),
+            params={"pw": get_md5_pw(), "sid": sid, "en": 1, "t": t},
+            timeout=REQUEST_TIMEOUT
+        )
+        return make_response(r.content, r.status_code)
+    except Exception as e:
+        return jsonify({"error": f"فشل الاتصال بـ OpenSprinkler: {e}"}), 502
+
+
+@app.route("/api/os/stop", methods=["POST"])
+def api_os_stop():
+    """إيقاف محطة يدوياً. Body: {sid: N}"""
+    body = request.get_json(silent=True)
+    if not body:
+        return jsonify({"error": "JSON مطلوب"}), 400
+    sid = body.get("sid")
+    if sid is None:
+        return jsonify({"error": "sid مطلوب"}), 400
+    try:
+        r = requests.get(
+            os_url("/cm"),
+            params={"pw": get_md5_pw(), "sid": sid, "en": 0, "t": 0},
+            timeout=REQUEST_TIMEOUT
+        )
+        return make_response(r.content, r.status_code)
+    except Exception as e:
+        return jsonify({"error": f"فشل الاتصال بـ OpenSprinkler: {e}"}), 502
 
 
 # -------- اختبار --------

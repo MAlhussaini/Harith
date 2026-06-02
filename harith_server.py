@@ -283,6 +283,29 @@ def api_ja():
 
 
 # -------- OpenSprinkler Dashboard Data & Page --------
+@app.route("/os/proxy", methods=["GET"])
+def os_proxy():
+    """Generic proxy — host and pw come from the caller, not env vars."""
+    endpoint = request.args.get("_ep", "")          # e.g. /jn, /jc, /cm
+    os_host  = request.args.get("_host", OS_BASE_URL).rstrip("/")
+    pw_hash  = request.args.get("pw", get_md5_pw())  # already MD5 from widget
+
+    # forward all other params as-is
+    forward_params = {k: v for k, v in request.args.items()
+                      if k not in ("_ep", "_host")}
+
+    try:
+        r = requests.get(f"{os_host}{endpoint}",
+                         params=forward_params,
+                         timeout=REQUEST_TIMEOUT)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
+    resp = make_response(r.content, r.status_code)
+    for k, v in r.headers.items():
+        if k.lower() in ("content-type", "cache-control"):
+            resp.headers[k] = v
+    return resp
 
 @app.route("/os/dashboard_data", methods=["GET"])
 def os_dashboard_data():

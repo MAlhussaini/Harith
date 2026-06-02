@@ -216,13 +216,27 @@ function md5(str){
 
 function pwHash(){return md5(document.getElementById('cfg-pw').value||cfg.password)}
 
-async function apiGet(endpoint,params={}){
-  const pw=pwHash();
-  const qs=new URLSearchParams({pw,...params}).toString();
-  const host=(document.getElementById('cfg-host')||{}).value||cfg.host;
-  const r=await fetch(`${host}${endpoint}?${qs}`,{mode:'cors'});
-  if(!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.json();
+async function apiGet(endpoint, params = {}) {
+    const pw   = pwHash();
+    const host = document.getElementById('cfg-host').value || cfg.host;
+
+    // If host is local IP → call it directly (LAN access)
+    // If host is a remote URL (Render) → use the /os/proxy route
+    const isLocal = host.includes('192.168.') || host.includes('localhost') || host.includes('127.0.');
+
+    let url, qs;
+    if (isLocal) {
+        qs  = new URLSearchParams({ pw, ...params }).toString();
+        url = `${host}${endpoint}?${qs}`;
+    } else {
+        // Route through Harith proxy — pass host and endpoint as meta-params
+        qs  = new URLSearchParams({ _ep: endpoint, _host: host, pw, ...params }).toString();
+        url = `https://harith.onrender.com/os/proxy?${qs}`;
+    }
+
+    const r = await fetch(url, { mode: 'cors' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
 }
 
 function showMsg(txt,ok=true){

@@ -101,6 +101,9 @@ select.inp{cursor:pointer}
 .panel{display:none}.panel.act{display:block}
 
 /* Stations */
+.mode-seg{margin-bottom:8px}
+.auto-note{margin:0 2px 14px;min-height:1em}
+.auto-dur{font-weight:700;color:var(--acc)}
 .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
 .stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 8px;text-align:center}
 .stat-n{font-size:clamp(20px,6vw,26px);font-weight:700}
@@ -138,7 +141,7 @@ select.inp{cursor:pointer}
 .adv-nav::-webkit-scrollbar{display:none}
 .nav-pill{min-width:0;min-height:48px;padding:0 12px;border-radius:11px;background:var(--elev);border:1px solid var(--line2);color:var(--txt2);font-size:13px;font-weight:600;white-space:nowrap;display:flex;align-items:center;justify-content:flex-start;gap:9px;line-height:1.2;transition:background .15s,color .15s,border-color .15s}
 .nav-pill span{overflow:hidden;text-overflow:ellipsis}
-.adv-nav .nav-pill:nth-child(5){grid-column:1/-1;justify-content:center}
+.adv-nav .nav-pill[hidden]{display:none}
 .nav-pill:hover{background:var(--elev2);color:var(--txt)}
 .nav-pill:active{transform:scale(.97)}
 .nav-pill.act{background:var(--acc-dim);border-color:rgba(45,184,122,.55);color:var(--acc);font-weight:700}
@@ -195,7 +198,9 @@ select.inp{cursor:pointer}
 .res-row .k{color:var(--txt2)}
 .res-row .v{font-weight:600;text-align:end}
 .up-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
-.up-row{display:grid;grid-template-columns:1.3fr .7fr 1fr .9fr;gap:6px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:12.5px;align-items:center}
+.up-row{display:grid;grid-template-columns:1.3fr .7fr 1fr .9fr;}
+.up-row.f5{grid-template-columns:1.2fr .65fr .9fr .85fr .85fr}
+.up-row,.up-row.f5{gap:6px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:12.5px;align-items:center}
 .up-row:last-child{border-bottom:0}
 .up-hdr{color:var(--txt3);font-size:11px;border-bottom:1px solid var(--line)}
 
@@ -247,9 +252,8 @@ html[data-theme="dark"] .leaflet-control-zoom a{background:var(--elev);color:var
 }
 @media(min-width:900px){
   .adv-grid{grid-template-columns:1.25fr 1fr;align-items:start}
-  .adv-nav{grid-template-columns:repeat(5,minmax(0,1fr));max-width:980px;margin-inline:auto}
+  .adv-nav{grid-template-columns:repeat(4,minmax(0,1fr));max-width:980px;margin-inline:auto}
   .adv-nav .nav-pill{justify-content:center}
-  .adv-nav .nav-pill:nth-child(5){grid-column:auto}
   .stn-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
   .content{padding:22px 24px}
 }
@@ -327,6 +331,11 @@ html[data-theme="dark"] .leaflet-control-zoom a{background:var(--elev);color:var
 
     <!-- Stations / timers -->
     <div class="panel act" id="tab-stations">
+      <div class="seg mode-seg" role="group">
+        <button type="button" class="seg-btn act" id="mode-auto" onclick="setCtrlMode('auto')" data-i18n="modeAuto">تلقائي (المعادلات)</button>
+        <button type="button" class="seg-btn" id="mode-manual" onclick="setCtrlMode('manual')" data-i18n="modeManual">يدوي</button>
+      </div>
+      <p class="hint auto-note" id="auto-note"></p>
       <div class="stat-row">
         <div class="stat"><div class="stat-n" id="s-total">0</div><div class="stat-l" data-i18n="total">إجمالي المحطات</div></div>
         <div class="stat"><div class="stat-n acc" id="s-active">0</div><div class="stat-l" data-i18n="activeNow">نشطة الآن</div></div>
@@ -349,8 +358,8 @@ html[data-theme="dark"] .leaflet-control-zoom a{background:var(--elev);color:var
     <div class="panel" id="tab-adv">
 
       <div class="adv-nav" role="tablist">
-        <button type="button" class="nav-pill act" role="tab" aria-selected="true" onclick="showAdv('simple',this)"><svg viewBox="0 0 24 24"><path d="M12 3.2c2.8 3.3 5 5.9 5 8.8a5 5 0 0 1-10 0c0-2.9 2.2-5.5 5-8.8z"/></svg><span data-i18n="calcSimple">الحساب البسيط</span></button>
-        <button type="button" class="nav-pill" role="tab" aria-selected="false" onclick="showAdv('pro',this)"><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="17" r="2"/></svg><span data-i18n="calcPro">وضع المحترفين</span></button>
+        <button type="button" class="nav-pill" role="tab" aria-selected="false" hidden onclick="showAdv('simple',this)"><svg viewBox="0 0 24 24"><path d="M12 3.2c2.8 3.3 5 5.9 5 8.8a5 5 0 0 1-10 0c0-2.9 2.2-5.5 5-8.8z"/></svg><span data-i18n="calcSimple">الحساب البسيط</span></button>
+        <button type="button" class="nav-pill act" role="tab" aria-selected="true" onclick="showAdv('pro',this)"><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="17" r="2"/></svg><span data-i18n="calcPro">وضع المحترفين</span></button>
         <button type="button" class="nav-pill" role="tab" aria-selected="false" onclick="showAdv('sched',this)"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9.5h16M8.5 3.5v3M15.5 3.5v3"/></svg><span data-i18n="schedNav">منشئ الجدول</span></button>
         <button type="button" class="nav-pill" role="tab" aria-selected="false" onclick="showAdv('names',this)"><svg viewBox="0 0 24 24"><path d="M20.6 12.3 11.9 3.6a1.6 1.6 0 0 0-1.1-.5H5.2a1.6 1.6 0 0 0-1.6 1.6v5.6c0 .4.2.8.5 1.1l8.7 8.7a1.6 1.6 0 0 0 2.3 0l5.5-5.5a1.6 1.6 0 0 0 0-2.3z"/><circle cx="8" cy="8" r="1.3"/></svg><span data-i18n="namesTitle">أسماء المحطات</span></button>
         <button type="button" class="nav-pill" role="tab" aria-selected="false" onclick="showAdv('conn',this)"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l2.8-2.8a4 4 0 0 0-5.7-5.7L11 7"/><path d="M14 10a4 4 0 0 0-5.7 0L5.5 12.8a4 4 0 0 0 5.7 5.7L13 17"/></svg><span data-i18n="calcConn">إعدادات الاتصال</span></button>
@@ -372,7 +381,7 @@ html[data-theme="dark"] .leaflet-control-zoom a{background:var(--elev);color:var
           <p class="hint" data-i18n="gpsHint">سيظهر طلب إذن من المتصفح عند استخدام GPS.</p>
         </div>
 
-        <div id="calc-simple" class="calc-pane act">
+        <div id="calc-simple" class="calc-pane">
           <div class="calc-grid">
             <div class="af-field">
               <label for="s-crop" data-i18n="cropLbl">نوع المحصول</label>
@@ -411,7 +420,7 @@ html[data-theme="dark"] .leaflet-control-zoom a{background:var(--elev);color:var
           </div>
         </div>
 
-        <div id="calc-pro" class="calc-pane">
+        <div id="calc-pro" class="calc-pane act">
           <div class="calc-grid">
             <div class="af-field">
               <label for="p-crop" data-i18n="cropLbl">نوع المحصول</label>
@@ -441,8 +450,8 @@ html[data-theme="dark"] .leaflet-control-zoom a{background:var(--elev);color:var
               <input class="inp" type="number" id="p-se" step="0.1" min="0.5" max="200" placeholder="20">
             </div>
             <div class="af-field">
-              <label for="p-hours" data-i18n="hoursLbl">ساعات التشغيل/اليوم (اختياري)</label>
-              <input class="inp" type="number" id="p-hours" step="0.5" min="0" max="24">
+              <label for="p-flow" data-i18n="flowLbl">التصرف لكل شجرة (لتر/ساعة)</label>
+              <input class="inp" type="number" id="p-flow" step="1" min="1" max="2000" inputmode="decimal" placeholder="60">
             </div>
           </div>
           <div class="calc-actions">
@@ -588,7 +597,7 @@ const T={
     lDay:'لتر/يوم',m3Day:'م³/يوم',mmDay:'مم/يوم',lHr:'لتر/ساعة',m3Hr:'م³/ساعة',m2:'م²',
     errLocation:'اختر موقع المزرعة من الخريطة أو عبر GPS أولاً',errCount:'أدخل عدد نباتات صحيحًا (أكبر من صفر)',
     errEff:'كفاءة الشبكة يجب أن تكون بين 0.5 و 1',errLR:'متطلب الغسيل LR يجب أن يكون بين 0 و 0.4',
-    errSe:'مساحة الظل يجب أن تكون أكبر من صفر (حتى 200 م²)',errHours:'ساعات التشغيل يجب أن تكون بين 0 و 24',errKc:'قيمة Kc غير صالحة (0.1 – 1.5)',
+    errSe:'مساحة الظل يجب أن تكون أكبر من صفر (حتى 200 م²)',errHours:'ساعات التشغيل يجب أن تكون بين 0 و 24',errKc:'قيمة Kc غير صالحة (0.1 – 1.5)',errFlow:'التصرف يجب أن يكون بين 1 و 2000 لتر/ساعة',modeAuto:'تلقائي (المعادلات)',modeManual:'يدوي',autoDurLbl:'المدة (حسب المعادلات)',autoNoteReady:'مدة تشغيل اليوم لكل زون: {d} — محسوبة تلقائياً من المعادلات وتوقعات ET₀ وتتحدّث يومياً',autoNoteMissing:'أكمل بيانات وضع المحترفين (الموقع، Kc، الكفاءة، LR، مساحة الظل، التصرف) لحساب المدة تلقائياً',autoNoteFetch:'جاري حساب المدة من المعادلات والتوقعات…',autoNoteManual:'الوضع اليدوي: أدخل مدة التشغيل بالثواني لكل محطة',autoRunFail:'تعذر حساب المدة تلقائياً — تحقق من البيانات أو الاتصال',flowLbl:'التصرف لكل شجرة (لتر/ساعة)',resFlow:'التصرف/شجرة',resRuntime:'مدة التشغيل المطلوبة/اليوم',resZoneFlow:'التصرف الإجمالي للزون',minDay:'دقيقة/يوم',hrS:'س',minS:'د',
     errWeather:'تعذر جلب بيانات الطقس — تحقق من الاتصال بالإنترنت',
     mockNote:'قيم ET₀ تقديرية (وضع تجريبي بدون اتصال)',
     saveReconnect:'حفظ وإعادة الاتصال',
@@ -646,7 +655,7 @@ const T={
     lDay:'L/day',m3Day:'m³/day',mmDay:'mm/day',lHr:'L/hr',m3Hr:'m³/hr',m2:'m²',
     errLocation:'Pick the farm location on the map or via GPS first',errCount:'Enter a valid number of plants (greater than zero)',
     errEff:'Efficiency must be between 0.5 and 1',errLR:'LR must be between 0 and 0.4',
-    errSe:'Shadow area must be greater than zero (up to 200 m²)',errHours:'Operating hours must be between 0 and 24',errKc:'Invalid Kc value (0.1 – 1.5)',
+    errSe:'Shadow area must be greater than zero (up to 200 m²)',errHours:'Operating hours must be between 0 and 24',errKc:'Invalid Kc value (0.1 – 1.5)',errFlow:'Flow must be between 1 and 2000 L/h',modeAuto:'Automatic (equations)',modeManual:'Manual',autoDurLbl:'Duration (from equations)',autoNoteReady:'Today\'s runtime per zone: {d} — computed automatically from the equations and ET₀ forecast, refreshed daily',autoNoteMissing:'Complete the professional-mode inputs (location, Kc, Eff, LR, shadow area, flow) to compute the runtime automatically',autoNoteFetch:'Computing runtime from equations and forecast…',autoNoteManual:'Manual mode: enter the run duration in seconds for each station',autoRunFail:'Could not compute runtime automatically — check inputs or connection',flowLbl:'Flow per tree (L/h)',resFlow:'Flow per tree',resRuntime:'Required runtime per day',resZoneFlow:'Total zone flow',minDay:'min/day',hrS:'h',minS:'min',
     errWeather:'Failed to fetch weather data — check your internet connection',
     mockNote:'ET₀ values are estimates (demo mode, offline)',
     saveReconnect:'Save & reconnect',
@@ -763,7 +772,15 @@ async function apiGet(endpoint,params={}){
 const DEMO_NAMES=['المدخل','الحديقة الأمامية','الحديقة الخلفية','النخيل','المسطح الأخضر','الورود','ركن الأشجار','الممر'];
 const demo={names:[],dis:0,sched:{},pid:1};
 function nowSec(){return Math.floor(Date.now()/1000)}
-function demoInit(){demo.names=DEMO_NAMES.slice();demo.dis=0;demo.sched={};demo.pid=1}
+function demoInit(){
+  demo.names=DEMO_NAMES.slice();demo.dis=0;demo.sched={};demo.pid=1;
+  try{
+    const s=JSON.parse(localStorage.getItem('harith_os_demo')||'null');
+    if(s&&Array.isArray(s.names)&&s.names.length)demo.names=s.names;
+    if(s&&typeof s.dis==='number')demo.dis=s.dis;
+  }catch(e){}
+}
+function demoSave(){try{localStorage.setItem('harith_os_demo',JSON.stringify({names:demo.names,dis:demo.dis}))}catch(e){}}
 function demoPurge(){const n=nowSec();for(const k in demo.sched){if(demo.sched[k].end<=n)delete demo.sched[k]}}
 function demoTail(excl){const n=nowSec();let tail=n;for(const k in demo.sched){if(+k===excl)continue;if(demo.sched[k].end>tail)tail=demo.sched[k].end}return tail}
 function demoRun(sid,dur){demoPurge();delete demo.sched[sid];const start=demoTail(sid);demo.sched[sid]={start,end:start+dur,dur,pid:demo.pid++}}
@@ -804,6 +821,7 @@ function demoHandle(ep,p){
   if(ep==='/cs'){
     if('d0' in p)demo.dis=+p.d0||0;
     for(const k in p){const m=/^s(\d+)$/.exec(k);if(m)demo.names[+m[1]]=p[k]}
+    demoSave();
     return{result:1};
   }
   return{result:1};
@@ -1047,8 +1065,9 @@ function renderStations(){
       </div>
       ${liveRow}
       <div class="dur-row">
-        <label>${t('durSec')}</label>
-        <input class="dur-input" type="number" min="1" max="3600" value="${s.dur}" onchange="setDur(${i},this.value)">
+        ${ctrlMode==='auto'
+          ?`<label>${t('autoDurLbl')}</label><span class="auto-dur ltr">${autoSecToday()>0?fmtRuntime(autoSecToday()/3600):'—'}</span>`
+          :`<label>${t('durSec')}</label><input class="dur-input" type="number" min="1" max="3600" value="${s.dur}" onchange="setDur(${i},this.value)">`}
       </div>
       <div class="stn-actions">
         <button class="btn acc" onclick="runStation(${i})" ${!s.enabled?'disabled':''}>${IC.play} ${t('run')}</button>
@@ -1066,13 +1085,66 @@ function updateStats(){
 }
 function setDur(i,v){stations[i].dur=parseInt(v)||300}
 
+/* ====== Automatic (equation-driven) runtime ====== */
+let ctrlMode='auto',autoRun={perDay:{},flow:0},autoBusy=false;
+const LS_MODE='harith_os_mode',LS_AUTO='harith_os_auto';
+function todayISO(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+function autoSecToday(){return autoRun.perDay[todayISO()]||0}
+function getProInputs(){
+  const lat=parseFloat($('lat-input').value),lon=parseFloat($('lon-input').value);
+  const kc=parseFloat($('p-kc').value),eff=parseFloat($('p-eff').value),lr=parseFloat($('p-lr').value),se=parseFloat($('p-se').value),flow=parseFloat($('p-flow').value);
+  if([lat,lon,kc,eff,lr,se,flow].some(v=>isNaN(v))||flow<=0)return null;
+  return{lat,lon,kc,eff,lr,se,flow};
+}
+function setAutoFromRows(rows,flow){
+  autoRun={perDay:{},flow};
+  rows.forEach(r=>{autoRun.perDay[r.date]=Math.max(60,Math.round(r.per/flow*3600))});
+  try{localStorage.setItem(LS_AUTO,JSON.stringify(autoRun))}catch(e){}
+  updateAutoNote();
+  if(connected)renderStations();
+}
+async function refreshAutoRuntime(force){
+  if(ctrlMode!=='auto'||autoBusy)return;
+  if(!force&&autoSecToday()>0){updateAutoNote();return}
+  const inp=getProInputs();
+  if(!inp){updateAutoNote();return}
+  autoBusy=true;updateAutoNote();
+  try{
+    const fc=await fetchForecast(inp.lat,inp.lon);
+    const rows=[];
+    for(let i=0;i<fc.dates.length;i++){
+      const e0=fc.et0[i];if(e0==null)continue;
+      rows.push({date:fc.dates[i],per:calcWater(e0,inp.kc,inp.se,inp.lr,inp.eff).per});
+    }
+    if(rows.length)setAutoFromRows(rows,inp.flow);
+  }catch(e){showMsg(t('autoRunFail'),false)}
+  finally{autoBusy=false;updateAutoNote()}
+}
+function setCtrlMode(m){
+  ctrlMode=(m==='manual')?'manual':'auto';
+  try{localStorage.setItem(LS_MODE,ctrlMode)}catch(e){}
+  $('mode-auto').classList.toggle('act',ctrlMode==='auto');
+  $('mode-manual').classList.toggle('act',ctrlMode==='manual');
+  updateAutoNote();renderStations();
+  if(ctrlMode==='auto')refreshAutoRuntime(false);
+}
+function updateAutoNote(){
+  const n=$('auto-note');if(!n)return;
+  if(ctrlMode==='manual'){n.textContent=t('autoNoteManual');return}
+  if(autoBusy){n.textContent=t('autoNoteFetch');return}
+  const sec=autoSecToday();
+  n.textContent=sec>0?fmt(t('autoNoteReady'),{d:fmtRuntime(sec/3600)}):t('autoNoteMissing');
+}
+
 async function runStation(i){
   const s=stations[i];
+  const dur=(ctrlMode==='auto')?autoSecToday():s.dur;
+  if(ctrlMode==='auto'&&!dur){showMsg(t('autoNoteMissing'),false);refreshAutoRuntime(true);return}
   try{
-    await apiGet('/cm',{sid:i,en:1,t:s.dur,ssta:1});
-    s.running=true;s.queued=false;s.runTotal=s.dur;s.timeLeft=s.dur;
+    await apiGet('/cm',{sid:i,en:1,t:dur,ssta:1});
+    s.running=true;s.queued=false;s.runTotal=dur;s.timeLeft=dur;
     renderStations();
-    showMsg(fmt(t('startedMsg'),{n:s.name,d:s.dur}),true);
+    showMsg(fmt(t('startedMsg'),{n:s.name,d:dur}),true);
     refreshRunning();
     setTimeout(refreshRunning,1200);
   }catch(e){showMsg(t('runFail'),false)}
@@ -1121,6 +1193,7 @@ function populateStationSelect(){
 }
 function renderSchedRows(){
   const c=$('sched-rows');
+  saveSettings();
   if(!schedRows.length){c.innerHTML=`<p class="empty">${t('noRows')}</p>`;return}
   c.innerHTML=schedRows.map((r,i)=>`
     <div class="sched-item">
@@ -1199,7 +1272,7 @@ const KC={palm:[0.80,0.85,0.90,0.95,1.00,1.00,1.00,1.00,0.90,0.85,0.85,0.80],
           citrus:[0.65,0.70,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.70,0.70,0.65]};
 const SHADOW={palm:{stP1:3.0,stP2:9.0,stP3:20.0,stP4:31.0},citrus:{stC1:4.0,stC2:6.0,stC3:9.0,stC4:7.0}};
 const STAGES={palm:['stP1','stP2','stP3','stP4'],citrus:['stC1','stC2','stC3','stC4']};
-let calcMap=null,calcMarker=null,advSec='simple';
+let calcMap=null,calcMarker=null,advSec='pro';
 
 function showAdv(sec,el){
   advSec=sec;
@@ -1284,6 +1357,12 @@ function syncProKc(){
 
 /* --- math (same equations as the original calculators) --- */
 function calcWater(et0,kc,se,lr,eff){const etc=et0*kc;return{etc,per:(etc*se)/((1-lr)*eff)}}
+function fmtRuntime(hours){
+  const mins=Math.round(hours*60);
+  const h=Math.floor(mins/60),m=mins%60;
+  if(h>0)return h+' '+t('hrS')+(m>0?' '+m+' '+t('minS'):'')+' ('+mins+' '+t('minS')+')';
+  return mins+' '+t('minS');
+}
 
 async function fetchForecast(lat,lon){
   try{
@@ -1314,7 +1393,7 @@ async function runCalc(mode){
     if(isNaN(lat)||isNaN(lon))throw new Error(t('errLocation'));
     const trees=parseInt($(mode==='simple'?'s-count':'p-count').value);
     if(!trees||trees<1)throw new Error(t('errCount'));
-    let crop,stageKey='',kcArr=null,kcFixed=0,lr,eff,se,hrs=0;
+    let crop,stageKey='',kcArr=null,kcFixed=0,lr,eff,se,flow=0;
     if(mode==='simple'){
       crop=$('s-crop').value;
       stageKey=$('s-stage').value;
@@ -1332,16 +1411,16 @@ async function runCalc(mode){
       if(isNaN(lr)||lr<0||lr>0.4)throw new Error(t('errLR'));
       se=parseFloat($('p-se').value);
       if(isNaN(se)||se<=0||se>200)throw new Error(t('errSe'));
-      const hv=$('p-hours').value;
-      if(hv!==''){
-        hrs=parseFloat(hv);
-        if(isNaN(hrs)||hrs<0||hrs>24)throw new Error(t('errHours'));
+      const fv=$('p-flow').value;
+      if(fv!==''){
+        flow=parseFloat(fv);
+        if(isNaN(flow)||flow<=0||flow>2000)throw new Error(t('errFlow'));
       }
     }
     btn.disabled=true;statusEl.textContent=t('fetching');
     const fc=await fetchForecast(lat,lon);
     statusEl.textContent='';
-    renderCalcResults({mode,crop,stageKey,kcArr,kcFixed,lr,eff,se,trees,hrs,lat,lon,fc});
+    renderCalcResults({mode,crop,stageKey,kcArr,kcFixed,lr,eff,se,trees,flow,lat,lon,fc});
   }catch(e){
     statusEl.textContent='';
     R.innerHTML=`<div class="result-card result-err">⚠️ ${esc(e.message)}</div>`;
@@ -1376,18 +1455,21 @@ function renderCalcResults(p){
     ${resRow('Se',`<span class="ltr">${p.se}</span> ${t('m2')}`)}
     ${resRow(t('perPlant'),`<span class="ltr">${td.per.toFixed(1)}</span> ${t('lDay')}`)}
     ${resRow(`${t('totalNeed')} (${p.trees})`,`<span class="ltr">${td.total.toFixed(0)}</span> ${t('lDay')} · <span class="ltr">${(td.total/1000).toFixed(2)}</span> ${t('m3Day')}`)}
-    ${p.hrs>0?resRow(t('perPlantHr'),`<span class="ltr">${(td.per/p.hrs).toFixed(1)}</span> ${t('lHr')}`)+resRow(t('totalHr'),`<span class="ltr">${(td.total/1000/p.hrs).toFixed(2)}</span> ${t('m3Hr')}`):''}
+    ${p.flow>0?resRow(t('resFlow'),`<span class="ltr">${p.flow}</span> ${t('lHr')}`)
+      +resRow(t('resRuntime'),`<b><span class="ltr">${fmtRuntime(td.per/p.flow)}</span></b>`)
+      +resRow(t('resZoneFlow'),`<span class="ltr">${(p.flow*p.trees).toFixed(0)}</span> ${t('lHr')} · <span class="ltr">${(p.flow*p.trees/1000).toFixed(2)}</span> ${t('m3Hr')}`):''}
   </div>`;
   if(rows.length>1){
     html+=`<div class="up-card"><div class="res-title">${t('resUpcoming')}</div>
-      <div class="up-row up-hdr"><span></span><span>ET₀</span><span>${t('lPerPlant')}</span><span>${t('m3Day')}</span></div>
+      <div class="up-row${p.flow>0?' f5':''} up-hdr"><span></span><span>ET₀</span><span>${t('lPerPlant')}</span><span>${t('m3Day')}</span>${p.flow>0?`<span>${t('minDay')}</span>`:''}</div>
       ${rows.slice(1).map(r=>{
         const dl=new Date(r.date+'T12:00:00').toLocaleDateString(loc,{weekday:'short',day:'numeric',month:'numeric'});
-        return `<div class="up-row"><span>${dl}</span><span class="ltr">${r.et0.toFixed(1)}</span><span class="ltr">${r.per.toFixed(1)}</span><span class="ltr">${(r.total/1000).toFixed(2)}</span></div>`;
+        return `<div class="up-row${p.flow>0?' f5':''}"><span>${dl}</span><span class="ltr">${r.et0.toFixed(1)}</span><span class="ltr">${r.per.toFixed(1)}</span><span class="ltr">${(r.total/1000).toFixed(2)}</span>${p.flow>0?`<span class="ltr">${Math.round(r.per/p.flow*60)}</span>`:''}</div>`;
       }).join('')}
     </div>`;
   }
   $('calc-result').innerHTML=html;
+  if(p.mode==='pro'&&p.flow>0)setAutoFromRows(rows,p.flow);
 }
 
 /* --- connection sub-tab --- */
@@ -1412,6 +1494,38 @@ async function saveConnection(){
   }
 }
 
+/* ================= Persistent settings (browser) ================= */
+const LS_SET='harith_os_settings';
+const PERSIST_FIELDS=['s-crop','s-stage','s-soil','s-irr','s-count',
+  'p-crop','p-kc','p-count','p-eff','p-lr','p-se','p-flow',
+  'plan-name','use-weather','new-day','new-time','new-dur'];
+let setSaveTimer=null;
+function saveSettings(){
+  clearTimeout(setSaveTimer);
+  setSaveTimer=setTimeout(()=>{
+    const o={};
+    PERSIST_FIELDS.forEach(id=>{const el=$(id);if(!el)return;o[id]=(el.type==='checkbox')?el.checked:el.value});
+    o._rows=schedRows;
+    try{localStorage.setItem(LS_SET,JSON.stringify(o))}catch(e){}
+  },250);
+}
+function restoreSettings(){
+  let o=null;
+  try{o=JSON.parse(localStorage.getItem(LS_SET)||'null')}catch(e){}
+  if(!o)return;
+  if(o['s-crop']!==undefined){$('s-crop').value=o['s-crop'];updateStageOptions();}
+  if(o['p-crop']!==undefined){$('p-crop').value=o['p-crop'];}
+  PERSIST_FIELDS.forEach(id=>{
+    if(o[id]===undefined)return;
+    const el=$(id);if(!el)return;
+    if(el.type==='checkbox')el.checked=!!o[id];
+    else el.value=o[id];
+  });
+  if(Array.isArray(o._rows)&&o._rows.length){schedRows=o._rows;renderSchedRows();}
+}
+document.addEventListener('input',e=>{if(e.target&&PERSIST_FIELDS.includes(e.target.id))saveSettings()});
+document.addEventListener('change',e=>{if(e.target&&PERSIST_FIELDS.includes(e.target.id))saveSettings()});
+
 /* ================= Init ================= */
 (function init(){
   let savedLang=null,savedTheme=null,auto=false;
@@ -1431,6 +1545,19 @@ async function saveConnection(){
     if(la&&lo){$('lat-input').value=la;$('lon-input').value=lo}
   }catch(e){}
   syncProKc();
+  restoreSettings();
+  try{
+    const m=localStorage.getItem(LS_MODE);
+    if(m==='manual')ctrlMode='manual';
+    const a=JSON.parse(localStorage.getItem(LS_AUTO)||'null');
+    if(a&&a.perDay)autoRun=a;
+  }catch(e){}
+  $('mode-auto').classList.toggle('act',ctrlMode==='auto');
+  $('mode-manual').classList.toggle('act',ctrlMode==='manual');
+  updateAutoNote();
+  if(ctrlMode==='auto')refreshAutoRuntime(false);
+  ['cfg-host','adv-host'].forEach(id=>{const el=$(id);if(el)el.addEventListener('input',()=>{try{localStorage.setItem(LS.host,el.value.trim())}catch(e){}})});
+  ['cfg-pw','adv-pw'].forEach(id=>{const el=$(id);if(el)el.addEventListener('input',()=>{try{localStorage.setItem(LS.pw,el.value)}catch(e){}})});
   if(auto)autoConnect();
 })();
 </script>

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#000000" id="meta-theme">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <title>حارث · التحكم في الري</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
@@ -133,6 +134,15 @@ select.inp{cursor:pointer}
 
 /* Advanced */
 .adv-grid{display:grid;gap:14px;margin-bottom:14px}
+.adv-nav{position:sticky;top:var(--hdr-h,88px);z-index:15;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;background:var(--bg);border-bottom:1px solid var(--line);margin:0 0 14px;padding:9px 2px 11px}
+.adv-nav::-webkit-scrollbar{display:none}
+.nav-pill{min-width:0;min-height:48px;padding:0 12px;border-radius:11px;background:var(--elev);border:1px solid var(--line2);color:var(--txt2);font-size:13px;font-weight:600;white-space:nowrap;display:flex;align-items:center;justify-content:flex-start;gap:9px;line-height:1.2;transition:background .15s,color .15s,border-color .15s}
+.nav-pill span{overflow:hidden;text-overflow:ellipsis}
+.adv-nav .nav-pill:nth-child(5){grid-column:1/-1;justify-content:center}
+.nav-pill:hover{background:var(--elev2);color:var(--txt)}
+.nav-pill:active{transform:scale(.97)}
+.nav-pill.act{background:var(--acc-dim);border-color:rgba(45,184,122,.55);color:var(--acc);font-weight:700}
+.nav-pill svg{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:14px}
 .card h2{font-size:12.5px;font-weight:600;color:var(--txt3);letter-spacing:.08em}
 .sched-list{display:flex;flex-direction:column;gap:8px}
@@ -162,6 +172,49 @@ select.inp{cursor:pointer}
 .name-lbl{font-size:12px;color:var(--txt3)}
 .name-row .inp{min-height:44px;padding:8px 12px}
 
+/* Water calculator */
+.calc-card{margin-bottom:14px}
+#calc-loc{display:flex;flex-direction:column;gap:10px;padding-bottom:14px;border-bottom:1px dashed var(--line)}
+.calc-map{height:260px;border-radius:var(--r-sm);border:1px solid var(--line2);overflow:hidden;background:var(--elev);position:relative;z-index:0}
+.map-fallback{display:grid;place-items:center;height:100%;padding:16px;text-align:center;font-size:13px;color:var(--txt3)}
+.coord-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.coord{display:flex;flex-direction:column;gap:5px}
+.coord-lbl{font-size:11.5px;color:var(--txt3)}
+#gps-btn{width:100%}
+.calc-pane{display:none;flex-direction:column;gap:14px}
+.calc-pane.act{display:flex}
+.calc-grid{display:grid;gap:10px;grid-template-columns:1fr 1fr}
+.calc-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.calc-status{font-size:12.5px;color:var(--txt3)}
+#calc-result{display:flex;flex-direction:column;gap:10px}
+.result-card{background:var(--acc-dim);border:1px solid rgba(45,184,122,.35);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:7px}
+.result-card.result-err{background:var(--dan-dim);border-color:rgba(224,80,80,.4);color:var(--dan);font-size:13.5px}
+.res-title{font-size:13.5px;font-weight:700;color:var(--acc);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.res-mock{font-size:10.5px;color:var(--warn);font-weight:600;background:var(--warn-dim);padding:2px 8px;border-radius:99px}
+.res-row{display:flex;justify-content:space-between;gap:12px;font-size:13.5px}
+.res-row .k{color:var(--txt2)}
+.res-row .v{font-weight:600;text-align:end}
+.up-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.up-row{display:grid;grid-template-columns:1.3fr .7fr 1fr .9fr;gap:6px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:12.5px;align-items:center}
+.up-row:last-child{border-bottom:0}
+.up-hdr{color:var(--txt3);font-size:11px;border-bottom:1px solid var(--line)}
+
+/* GPS modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.62);display:none;place-items:center;z-index:80;padding:20px}
+.modal-overlay.act{display:grid}
+.modal{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line2);border-radius:16px;padding:20px;display:flex;flex-direction:column;gap:12px}
+.modal h3{font-size:15.5px}
+.modal p{font-size:13.5px;color:var(--txt2);line-height:1.75;margin:0}
+.gps-step{display:none;flex-direction:column;gap:10px}
+.gps-step.act{display:flex}
+.spinner.lite{border-color:var(--line2);border-top-color:var(--acc)}
+
+/* Leaflet dark theme */
+html[data-theme="dark"] .calc-map .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.65)}
+html[data-theme="dark"] .leaflet-control-attribution{background:rgba(0,0,0,.7)!important;color:var(--txt3)!important}
+html[data-theme="dark"] .leaflet-control-attribution a{color:var(--acc)!important}
+html[data-theme="dark"] .leaflet-control-zoom a{background:var(--elev);color:var(--txt);border-color:var(--line2)}
+
 /* ---------- Breakpoints ---------- */
 @media(hover:hover){
   .btn:hover{background:var(--elev);border-color:var(--line2)}
@@ -188,9 +241,15 @@ select.inp{cursor:pointer}
   .add-form>.btn{grid-column:auto}
   .plan-row{flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap}
   .plan-row .inp{max-width:320px}
+  .calc-grid{grid-template-columns:repeat(3,1fr)}
+  #gps-btn{width:auto;align-self:flex-start}
+  .calc-map{height:320px}
 }
 @media(min-width:900px){
   .adv-grid{grid-template-columns:1.25fr 1fr;align-items:start}
+  .adv-nav{grid-template-columns:repeat(5,minmax(0,1fr));max-width:980px;margin-inline:auto}
+  .adv-nav .nav-pill{justify-content:center}
+  .adv-nav .nav-pill:nth-child(5){grid-column:auto}
   .stn-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
   .content{padding:22px 24px}
 }
@@ -288,10 +347,115 @@ select.inp{cursor:pointer}
 
     <!-- Advanced settings -->
     <div class="panel" id="tab-adv">
-      <div class="adv-grid">
 
-        <section class="card">
-          <h2 data-i18n="schedTitle">منشئ الجدول</h2>
+      <div class="adv-nav" role="tablist">
+        <button type="button" class="nav-pill act" role="tab" aria-selected="true" onclick="showAdv('simple',this)"><svg viewBox="0 0 24 24"><path d="M12 3.2c2.8 3.3 5 5.9 5 8.8a5 5 0 0 1-10 0c0-2.9 2.2-5.5 5-8.8z"/></svg><span data-i18n="calcSimple">الحساب البسيط</span></button>
+        <button type="button" class="nav-pill" role="tab" aria-selected="false" onclick="showAdv('pro',this)"><svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h14M5 17h14"/><circle cx="9" cy="7" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="8" cy="17" r="2"/></svg><span data-i18n="calcPro">وضع المحترفين</span></button>
+        <button type="button" class="nav-pill" role="tab" aria-selected="false" onclick="showAdv('sched',this)"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 9.5h16M8.5 3.5v3M15.5 3.5v3"/></svg><span data-i18n="schedNav">منشئ الجدول</span></button>
+        <button type="button" class="nav-pill" role="tab" aria-selected="false" onclick="showAdv('names',this)"><svg viewBox="0 0 24 24"><path d="M20.6 12.3 11.9 3.6a1.6 1.6 0 0 0-1.1-.5H5.2a1.6 1.6 0 0 0-1.6 1.6v5.6c0 .4.2.8.5 1.1l8.7 8.7a1.6 1.6 0 0 0 2.3 0l5.5-5.5a1.6 1.6 0 0 0 0-2.3z"/><circle cx="8" cy="8" r="1.3"/></svg><span data-i18n="namesTitle">أسماء المحطات</span></button>
+        <button type="button" class="nav-pill" role="tab" aria-selected="false" onclick="showAdv('conn',this)"><svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l2.8-2.8a4 4 0 0 0-5.7-5.7L11 7"/><path d="M14 10a4 4 0 0 0-5.7 0L5.5 12.8a4 4 0 0 0 5.7 5.7L13 17"/></svg><span data-i18n="calcConn">إعدادات الاتصال</span></button>
+      </div>
+
+      <section class="card calc-card" id="sec-calc">
+        <h2 data-i18n="calcTitle">حاسبة الاحتياج المائي</h2>
+
+        <div id="calc-loc">
+          <div id="calc-map" class="calc-map"></div>
+          <div class="coord-row">
+            <div class="coord"><span class="coord-lbl ltr">Latitude</span><input class="inp ltr" id="lat-input" readonly placeholder="—"></div>
+            <div class="coord"><span class="coord-lbl ltr">Longitude</span><input class="inp ltr" id="lon-input" readonly placeholder="—"></div>
+          </div>
+          <button class="btn acc" id="gps-btn" onclick="openGps()">
+            <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+            <span data-i18n="gpsBtn">استخدام موقعي الحالي (GPS)</span>
+          </button>
+          <p class="hint" data-i18n="gpsHint">سيظهر طلب إذن من المتصفح عند استخدام GPS.</p>
+        </div>
+
+        <div id="calc-simple" class="calc-pane act">
+          <div class="calc-grid">
+            <div class="af-field">
+              <label for="s-crop" data-i18n="cropLbl">نوع المحصول</label>
+              <select class="inp" id="s-crop" onchange="updateStageOptions()">
+                <option value="palm" data-i18n="cropPalm">النخيل</option>
+                <option value="citrus" data-i18n="cropCitrus">الحمضيات</option>
+              </select>
+            </div>
+            <div class="af-field">
+              <label for="s-stage" data-i18n="stageLbl">مرحلة النمو أو العمر</label>
+              <select class="inp" id="s-stage"></select>
+            </div>
+            <div class="af-field">
+              <label for="s-soil" data-i18n="soilLbl">نوع التربة</label>
+              <select class="inp" id="s-soil">
+                <option value="0.15" data-i18n="soilSandy">رملية</option>
+                <option value="0.12" data-i18n="soilLoamy">مزيجية</option>
+                <option value="0.10" data-i18n="soilClay">طينية</option>
+              </select>
+            </div>
+            <div class="af-field">
+              <label for="s-irr" data-i18n="irrLbl">نوع الري</label>
+              <select class="inp" id="s-irr">
+                <option value="0.90" data-i18n="irrDrip">تنقيط (كفاءة 90%)</option>
+                <option value="0.80" data-i18n="irrBubbler">فوارات (كفاءة 80%)</option>
+              </select>
+            </div>
+            <div class="af-field">
+              <label for="s-count" data-i18n="countLbl">عدد النباتات</label>
+              <input class="inp" type="number" id="s-count" min="1" step="1" inputmode="numeric" placeholder="100">
+            </div>
+          </div>
+          <div class="calc-actions">
+            <button class="btn acc" id="s-calc-btn" onclick="runCalc('simple')" data-i18n="calcBtn">احسب الاحتياج</button>
+            <span class="calc-status" id="s-status"></span>
+          </div>
+        </div>
+
+        <div id="calc-pro" class="calc-pane">
+          <div class="calc-grid">
+            <div class="af-field">
+              <label for="p-crop" data-i18n="cropLbl">نوع المحصول</label>
+              <select class="inp" id="p-crop" onchange="syncProKc()">
+                <option value="palm" data-i18n="cropPalm">النخيل</option>
+                <option value="citrus" data-i18n="cropCitrus">الحمضيات</option>
+              </select>
+            </div>
+            <div class="af-field">
+              <label for="p-kc" data-i18n="kcLbl">Kc (FAO)</label>
+              <input class="inp" type="number" id="p-kc" step="0.01" min="0.1" max="1.5">
+            </div>
+            <div class="af-field">
+              <label for="p-count" data-i18n="countLbl">عدد النباتات</label>
+              <input class="inp" type="number" id="p-count" min="1" step="1" inputmode="numeric" placeholder="100">
+            </div>
+            <div class="af-field">
+              <label for="p-eff" data-i18n="effLbl">كفاءة الشبكة Eff</label>
+              <input class="inp" type="number" id="p-eff" step="0.01" min="0.5" max="1" value="0.90">
+            </div>
+            <div class="af-field">
+              <label for="p-lr" data-i18n="lrLbl">متطلب الغسيل LR</label>
+              <input class="inp" type="number" id="p-lr" step="0.01" min="0" max="0.4" placeholder="0.15">
+            </div>
+            <div class="af-field">
+              <label for="p-se" data-i18n="seLbl">مساحة الظل/النبتة (م²)</label>
+              <input class="inp" type="number" id="p-se" step="0.1" min="0.5" max="200" placeholder="20">
+            </div>
+            <div class="af-field">
+              <label for="p-hours" data-i18n="hoursLbl">ساعات التشغيل/اليوم (اختياري)</label>
+              <input class="inp" type="number" id="p-hours" step="0.5" min="0" max="24">
+            </div>
+          </div>
+          <div class="calc-actions">
+            <button class="btn acc" id="p-calc-btn" onclick="runCalc('pro')" data-i18n="calcBtn">احسب الاحتياج</button>
+            <span class="calc-status" id="p-status"></span>
+          </div>
+        </div>
+
+        <div id="calc-result"></div>
+      </section>
+
+      <section class="card" id="sec-sched" style="display:none">
+          <h2 data-i18n="schedTitle">منشئ جدول الري</h2>
           <div class="sched-list" id="sched-rows"></div>
           <div class="add-form">
             <div class="af-field full">
@@ -329,19 +493,48 @@ select.inp{cursor:pointer}
           </div>
         </section>
 
-        <section class="card">
+      <section class="card" id="sec-names" style="display:none">
           <h2 data-i18n="namesTitle">أسماء المحطات</h2>
           <div id="name-editor"></div>
           <button class="btn acc" onclick="saveNames()" data-i18n="saveNames">حفظ الأسماء في الجهاز</button>
         </section>
 
-      </div>
-      <button class="btn wide" onclick="goSetup()" data-i18n="editConn">تعديل إعدادات الاتصال</button>
+      <section class="card" id="sec-conn" style="display:none">
+        <h2 data-i18n="calcConn">إعدادات الاتصال</h2>
+        <div class="field">
+          <label for="adv-host" data-i18n="host">عنوان الجهاز (Host)</label>
+          <input class="inp ltr" id="adv-host" inputmode="url" spellcheck="false" placeholder="http://192.168.x.x">
+        </div>
+        <div class="field">
+          <label for="adv-pw" data-i18n="password">كلمة المرور</label>
+          <input class="inp ltr" id="adv-pw" type="password" placeholder="••••••••">
+        </div>
+        <button class="btn acc" onclick="saveConnection()" data-i18n="saveReconnect">حفظ وإعادة الاتصال</button>
+      </section>
     </div>
 
   </main>
 </section>
 
+<div class="modal-overlay" id="gps-modal" onclick="if(event.target===this)closeGps()">
+  <div class="modal">
+    <h3 data-i18n="gpsTitle">تحديد الموقع تلقائيًا</h3>
+    <div class="gps-step act" id="gps-step1">
+      <p data-i18n="gpsBody">سيطلب منك المتصفح السماح للتطبيق باستخدام موقعك الحالي لتحديد موقع المزرعة تلقائيًا. يمكنك الموافقة لاستخدام GPS، أو إلغاء ذلك واختيار الموقع يدويًا من الخريطة.</p>
+      <button class="btn-primary" style="min-height:48px;font-size:15px" onclick="gpsProceed()" data-i18n="gpsContinue">متابعة وطلب الموقع</button>
+      <button class="btn wide" onclick="closeGps()" data-i18n="gpsManual">اختيار الموقع يدويًا</button>
+    </div>
+    <div class="gps-step" id="gps-loading">
+      <p style="display:flex;align-items:center;justify-content:center;gap:10px"><span class="spinner lite"></span><span data-i18n="gpsLocating">جاري تحديد الموقع…</span></p>
+    </div>
+    <div class="gps-step" id="gps-step2">
+      <p data-i18n="gpsErrBody">لم يتم السماح بالحصول على الموقع تلقائيًا. يمكنك السماح من إعدادات المتصفح، أو اختيار الموقع يدويًا من الخريطة.</p>
+      <button class="btn wide" onclick="closeGps()" data-i18n="gpsBack">العودة للاختيار اليدوي</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 /* ================= i18n ================= */
 const T={
@@ -366,7 +559,7 @@ const T={
     allStopped:'تم إيقاف جميع المحطات',stopAllFail:'فشل إيقاف الكل',
     enabledMsg:'تم تفعيل {n}',disabledMsg:'تم تعطيل {n}',cmdFail:'فشل الأمر',
     noStations:'لا توجد محطات — جرّب التحديث.',
-    schedTitle:'منشئ الجدول',stationLbl:'المحطة',dayLbl:'اليوم',timeLbl:'وقت البدء',minLbl:'المدة (دقيقة)',
+    schedNav:'منشئ الجدول',schedTitle:'منشئ جدول الري',stationLbl:'المحطة',dayLbl:'اليوم',timeLbl:'وقت البدء',minLbl:'المدة (دقيقة)',
     add:'إضافة',noRows:'لا توجد صفوف بعد — أضف أول صف من النموذج بالأسفل.',
     minutes:'دقيقة',del:'حذف',selectStation:'اختر محطة أولاً',addRowsFirst:'أضف صفوفاً أولاً',
     planName:'اسم الجدول…',planDefault:'خطة الري',weather:'استخدام التعديل حسب الطقس',
@@ -375,6 +568,30 @@ const T={
     connectFirstNames:'اتصل أولاً لتعديل الأسماء',
     editConn:'تعديل إعدادات الاتصال',
     demoTitle:'الوضع التجريبي',demoBadge:'تجريبي',demoStarted:'الوضع التجريبي — محاكاة ٨ محطات بدون اتصال بالجهاز',
+    calcTitle:'حاسبة الاحتياج المائي',calcSimple:'الحساب البسيط',calcPro:'وضع المحترفين',calcConn:'إعدادات الاتصال',
+    gpsBtn:'استخدام موقعي الحالي (GPS)',gpsHint:'سيظهر طلب إذن من المتصفح عند استخدام GPS.',
+    gpsTitle:'تحديد الموقع تلقائيًا',
+    gpsBody:'سيطلب منك المتصفح السماح للتطبيق باستخدام موقعك الحالي لتحديد موقع المزرعة تلقائيًا. يمكنك الموافقة لاستخدام GPS، أو إلغاء ذلك واختيار الموقع يدويًا من الخريطة.',
+    gpsContinue:'متابعة وطلب الموقع',gpsManual:'اختيار الموقع يدويًا',gpsLocating:'جاري تحديد الموقع…',
+    gpsErrBody:'لم يتم السماح بالحصول على الموقع تلقائيًا. يمكنك السماح من إعدادات المتصفح، أو اختيار الموقع يدويًا من الخريطة.',
+    gpsBack:'العودة للاختيار اليدوي',
+    mapOffline:'تعذر تحميل الخريطة — تحقق من الاتصال بالإنترنت، أو استخدم زر GPS.',
+    cropLbl:'نوع المحصول',cropPalm:'النخيل',cropCitrus:'الحمضيات',stageLbl:'مرحلة النمو أو العمر',
+    stP1:'1–3 سنوات',stP2:'4–6 سنوات',stP3:'7–10 سنوات',stP4:'أكثر من 10 سنوات',
+    stC1:'بداية',stC2:'نمو',stC3:'ذروة',stC4:'نهاية',
+    soilLbl:'نوع التربة',soilSandy:'رملية',soilLoamy:'مزيجية',soilClay:'طينية',
+    irrLbl:'نوع الري',irrDrip:'تنقيط (كفاءة 90%)',irrBubbler:'فوارات (كفاءة 80%)',
+    countLbl:'عدد النباتات',kcLbl:'Kc (FAO)',effLbl:'كفاءة الشبكة Eff',lrLbl:'متطلب الغسيل LR',seLbl:'مساحة الظل/النبتة (م²)',hoursLbl:'ساعات التشغيل/اليوم (اختياري)',
+    calcBtn:'احسب الاحتياج',fetching:'جاري جلب بيانات الطقس…',
+    resTitle:'النتائج — اليوم',resUpcoming:'الأيام القادمة',resLoc:'الإحداثيات',resCrop:'المحصول',resMonth:'الشهر',
+    perPlant:'الاحتياج لكل نبتة',lPerPlant:'لتر/نبتة',totalNeed:'الاحتياج الكلي',perPlantHr:'لكل نبتة/ساعة',totalHr:'الإجمالي/ساعة',
+    lDay:'لتر/يوم',m3Day:'م³/يوم',mmDay:'مم/يوم',lHr:'لتر/ساعة',m3Hr:'م³/ساعة',m2:'م²',
+    errLocation:'اختر موقع المزرعة من الخريطة أو عبر GPS أولاً',errCount:'أدخل عدد نباتات صحيحًا (أكبر من صفر)',
+    errEff:'كفاءة الشبكة يجب أن تكون بين 0.5 و 1',errLR:'متطلب الغسيل LR يجب أن يكون بين 0 و 0.4',
+    errSe:'مساحة الظل يجب أن تكون أكبر من صفر (حتى 200 م²)',errHours:'ساعات التشغيل يجب أن تكون بين 0 و 24',errKc:'قيمة Kc غير صالحة (0.1 – 1.5)',
+    errWeather:'تعذر جلب بيانات الطقس — تحقق من الاتصال بالإنترنت',
+    mockNote:'قيم ET₀ تقديرية (وضع تجريبي بدون اتصال)',
+    saveReconnect:'حفظ وإعادة الاتصال',
     theme:'المظهر',themeDark:'داكن',themeLight:'فاتح',
     queued:'في الانتظار',queuedSec:'بانتظار الدور — {s} ث',startsAt:'يبدأ',
     days:{Monday:'الاثنين',Tuesday:'الثلاثاء',Wednesday:'الأربعاء',Thursday:'الخميس',Friday:'الجمعة',Saturday:'السبت',Sunday:'الأحد'}
@@ -400,7 +617,7 @@ const T={
     allStopped:'All stations stopped',stopAllFail:'Stop all failed',
     enabledMsg:'{n} enabled',disabledMsg:'{n} disabled',cmdFail:'Command failed',
     noStations:'No stations found — try refreshing.',
-    schedTitle:'Schedule builder',stationLbl:'Station',dayLbl:'Day',timeLbl:'Start time',minLbl:'Duration (min)',
+    schedNav:'Schedule',schedTitle:'Irrigation schedule builder',stationLbl:'Station',dayLbl:'Day',timeLbl:'Start time',minLbl:'Duration (min)',
     add:'Add',noRows:'No rows yet — add the first one from the form below.',
     minutes:'min',del:'Delete',selectStation:'Select a station first',addRowsFirst:'Add some rows first',
     planName:'Schedule name…',planDefault:'Irrigation plan',weather:'Use weather adjustment',
@@ -409,6 +626,30 @@ const T={
     connectFirstNames:'Connect first to edit names',
     editConn:'Edit connection settings',
     demoTitle:'Demo mode',demoBadge:'Demo',demoStarted:'Demo mode — simulating 8 stations with no device connection',
+    calcTitle:'Water requirement calculator',calcSimple:'Simple mode',calcPro:'Professional mode',calcConn:'Connection settings',
+    gpsBtn:'Use my current location (GPS)',gpsHint:'The browser will ask for permission when using GPS.',
+    gpsTitle:'Locate automatically',
+    gpsBody:'Your browser will ask you to allow this app to use your current location to set the farm position automatically. You can approve to use GPS, or cancel and pick the location manually on the map.',
+    gpsContinue:'Continue & request location',gpsManual:'Pick manually on the map',gpsLocating:'Locating…',
+    gpsErrBody:'Location access was not granted. You can allow it from your browser settings, or pick the location manually on the map.',
+    gpsBack:'Back to manual selection',
+    mapOffline:'Map failed to load — check your internet connection, or use the GPS button.',
+    cropLbl:'Crop type',cropPalm:'Date palm',cropCitrus:'Citrus',stageLbl:'Growth stage / age',
+    stP1:'1–3 years',stP2:'4–6 years',stP3:'7–10 years',stP4:'Over 10 years',
+    stC1:'Initial',stC2:'Development',stC3:'Mid-season',stC4:'Late season',
+    soilLbl:'Soil type',soilSandy:'Sandy',soilLoamy:'Loamy',soilClay:'Clay',
+    irrLbl:'Irrigation type',irrDrip:'Drip (90% eff.)',irrBubbler:'Bubbler (80% eff.)',
+    countLbl:'Number of plants',kcLbl:'Kc (FAO)',effLbl:'System efficiency Eff',lrLbl:'Leaching req. LR',seLbl:'Shadow area/plant (m²)',hoursLbl:'Operating hours/day (optional)',
+    calcBtn:'Calculate',fetching:'Fetching weather data…',
+    resTitle:'Results — today',resUpcoming:'Upcoming days',resLoc:'Coordinates',resCrop:'Crop',resMonth:'Month',
+    perPlant:'Need per plant',lPerPlant:'L/plant',totalNeed:'Total need',perPlantHr:'Per plant/hour',totalHr:'Total/hour',
+    lDay:'L/day',m3Day:'m³/day',mmDay:'mm/day',lHr:'L/hr',m3Hr:'m³/hr',m2:'m²',
+    errLocation:'Pick the farm location on the map or via GPS first',errCount:'Enter a valid number of plants (greater than zero)',
+    errEff:'Efficiency must be between 0.5 and 1',errLR:'LR must be between 0 and 0.4',
+    errSe:'Shadow area must be greater than zero (up to 200 m²)',errHours:'Operating hours must be between 0 and 24',errKc:'Invalid Kc value (0.1 – 1.5)',
+    errWeather:'Failed to fetch weather data — check your internet connection',
+    mockNote:'ET₀ values are estimates (demo mode, offline)',
+    saveReconnect:'Save & reconnect',
     theme:'Theme',themeDark:'Dark',themeLight:'Light',
     queued:'Queued',queuedSec:'Waiting in queue — {s}s',startsAt:'Starts',
     days:{Monday:'Monday',Tuesday:'Tuesday',Wednesday:'Wednesday',Thursday:'Thursday',Friday:'Friday',Saturday:'Saturday',Sunday:'Sunday'}
@@ -430,7 +671,7 @@ const IC={
 };
 
 /* ================= State ================= */
-const LS={lang:'harith_os_lang',host:'harith_os_host',pw:'harith_os_pw',theme:'harith_os_theme',conn:'harith_os_conn'};
+const LS={lang:'harith_os_lang',host:'harith_os_host',pw:'harith_os_pw',theme:'harith_os_theme',conn:'harith_os_conn',lat:'harith_os_lat',lon:'harith_os_lon'};
 let lang='ar';
 let cfg={host:'http://192.168.100.30',password:'opendoor'};
 let theme='dark',badgeState='off',lastSig='',demoMode=false;
@@ -611,6 +852,7 @@ function setLang(l){
   renderStations();
   renderSchedRows();
   renderNameEditor();
+  updateStageOptions();
 }
 
 function updateBadge(state){
@@ -624,15 +866,22 @@ function updateBadge(state){
 function showView(v){
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
   $('view-'+v).classList.add('active');
-  if(v==='main')startPoll();else stopPoll();
+  if(v==='main'){startPoll();requestAnimationFrame(updateHdrH);}else stopPoll();
   window.scrollTo(0,0);
 }
+function updateHdrH(){
+  const h=document.querySelector('#view-main .hdr');
+  if(h&&h.offsetHeight)document.documentElement.style.setProperty('--hdr-h',h.offsetHeight+'px');
+}
+window.addEventListener('resize',updateHdrH);
+window.addEventListener('orientationchange',()=>setTimeout(updateHdrH,150));
 function goSetup(){demoMode=false;connected=false;stopPoll();updateBadge('off');showView('setup');setupStatus('')}
 function switchTab(name,el){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('act'));
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('act'));
   $('tab-'+name).classList.add('act');
   el.classList.add('act');
+  if(name==='adv')setTimeout(onAdvShown,80);
 }
 function setupStatus(msg,isErr=false){
   const el=$('setup-status');
@@ -945,6 +1194,224 @@ async function saveNames(){
   }catch(e){showMsg(t('saveFail'),false)}
 }
 
+/* ================= Water calculator ================= */
+const KC={palm:[0.80,0.85,0.90,0.95,1.00,1.00,1.00,1.00,0.90,0.85,0.85,0.80],
+          citrus:[0.65,0.70,0.75,0.75,0.75,0.75,0.75,0.75,0.75,0.70,0.70,0.65]};
+const SHADOW={palm:{stP1:3.0,stP2:9.0,stP3:20.0,stP4:31.0},citrus:{stC1:4.0,stC2:6.0,stC3:9.0,stC4:7.0}};
+const STAGES={palm:['stP1','stP2','stP3','stP4'],citrus:['stC1','stC2','stC3','stC4']};
+let calcMap=null,calcMarker=null,advSec='simple';
+
+function showAdv(sec,el){
+  advSec=sec;
+  const isCalc=(sec==='simple'||sec==='pro');
+  $('sec-calc').style.display=isCalc?'':'none';
+  $('sec-sched').style.display=(sec==='sched')?'':'none';
+  $('sec-names').style.display=(sec==='names')?'':'none';
+  $('sec-conn').style.display=(sec==='conn')?'':'none';
+  if(isCalc){
+    $('calc-simple').classList.toggle('act',sec==='simple');
+    $('calc-pro').classList.toggle('act',sec==='pro');
+    if(sec==='pro'&&!$('p-kc').value)syncProKc();
+    ensureCalcMap();
+  }
+  if(sec==='conn'){$('adv-host').value=$('cfg-host').value;$('adv-pw').value=$('cfg-pw').value;}
+  if(el){
+    document.querySelectorAll('.adv-nav .nav-pill').forEach(b=>{b.classList.remove('act');b.setAttribute('aria-selected','false');});
+    el.classList.add('act');
+    el.setAttribute('aria-selected','true');
+    try{el.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});}catch(e){}
+    const panel=$('tab-adv'),hdr=document.querySelector('#view-main .hdr');
+    if(panel&&hdr){
+      const y=window.scrollY+panel.getBoundingClientRect().top-hdr.offsetHeight-6;
+      window.scrollTo({top:Math.max(0,y),behavior:'smooth'});
+    }
+  }
+}
+function onAdvShown(){updateHdrH();if(advSec==='simple'||advSec==='pro')ensureCalcMap();}
+
+function ensureCalcMap(){
+  const el=$('calc-map');
+  if(calcMap){setTimeout(()=>calcMap.invalidateSize(),80);return}
+  if(typeof L==='undefined'){el.innerHTML=`<div class="map-fallback">${t('mapOffline')}</div>`;return}
+  const la=parseFloat($('lat-input').value),lo=parseFloat($('lon-input').value);
+  const has=!isNaN(la)&&!isNaN(lo);
+  calcMap=L.map(el).setView(has?[la,lo]:[24.7136,46.6753],has?13:6);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(calcMap);
+  if(has)calcMarker=L.marker([la,lo]).addTo(calcMap);
+  calcMap.on('click',e=>setCalcLoc(e.latlng.lat,e.latlng.lng,false));
+  setTimeout(()=>calcMap.invalidateSize(),120);
+}
+function setCalcLoc(lat,lon,pan){
+  $('lat-input').value=lat.toFixed(4);
+  $('lon-input').value=lon.toFixed(4);
+  try{localStorage.setItem(LS.lat,lat.toFixed(4));localStorage.setItem(LS.lon,lon.toFixed(4))}catch(e){}
+  if(calcMap){
+    if(calcMarker)calcMarker.setLatLng([lat,lon]);else calcMarker=L.marker([lat,lon]).addTo(calcMap);
+    if(pan)calcMap.setView([lat,lon],14);
+  }
+}
+
+/* --- GPS modal --- */
+function gpsStep(n){['gps-step1','gps-loading','gps-step2'].forEach((id,i)=>$(id).classList.toggle('act',i===n))}
+function openGps(){gpsStep(0);$('gps-modal').classList.add('act')}
+function closeGps(){$('gps-modal').classList.remove('act')}
+function gpsProceed(){
+  if(!navigator.geolocation){gpsStep(2);return}
+  gpsStep(1);
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      if(!$('view-main').classList.contains('active')){closeGps();return}
+      ensureCalcMap();
+      setCalcLoc(pos.coords.latitude,pos.coords.longitude,true);
+      closeGps();
+    },
+    ()=>gpsStep(2),
+    {enableHighAccuracy:true,timeout:10000,maximumAge:0}
+  );
+}
+
+/* --- fields --- */
+function updateStageOptions(){
+  const sel=$('s-stage');if(!sel)return;
+  const crop=$('s-crop').value,cur=sel.value;
+  sel.innerHTML=STAGES[crop].map(k=>`<option value="${k}">${t(k)}</option>`).join('');
+  if(STAGES[crop].includes(cur))sel.value=cur;
+}
+function syncProKc(){
+  const el=$('p-kc');if(!el)return;
+  el.value=KC[$('p-crop').value][new Date().getMonth()].toFixed(2);
+}
+
+/* --- math (same equations as the original calculators) --- */
+function calcWater(et0,kc,se,lr,eff){const etc=et0*kc;return{etc,per:(etc*se)/((1-lr)*eff)}}
+
+async function fetchForecast(lat,lon){
+  try{
+    const qs=new URLSearchParams({latitude:lat,longitude:lon,daily:'et0_fao_evapotranspiration',timezone:'auto',forecast_days:'7'});
+    const r=await fetch('https://api.open-meteo.com/v1/forecast?'+qs.toString());
+    if(!r.ok)throw 0;
+    const d=await r.json();
+    const dates=(d.daily&&d.daily.time)||[];
+    const et0=(d.daily&&d.daily.et0_fao_evapotranspiration)||[];
+    if(!dates.length||et0[0]==null)throw 0;
+    return{dates,et0,mock:false};
+  }catch(e){
+    if(demoMode){
+      const dates=[],vals=[7.0,7.1,6.9,7.2,7.0,6.8,7.1],base=new Date();
+      for(let i=0;i<7;i++){const dd=new Date(base);dd.setDate(dd.getDate()+i);dates.push(dd.toISOString().slice(0,10))}
+      return{dates,et0:vals,mock:true};
+    }
+    throw new Error(t('errWeather'));
+  }
+}
+
+async function runCalc(mode){
+  const R=$('calc-result');R.innerHTML='';
+  const statusEl=$(mode==='simple'?'s-status':'p-status');
+  const btn=$(mode==='simple'?'s-calc-btn':'p-calc-btn');
+  try{
+    const lat=parseFloat($('lat-input').value),lon=parseFloat($('lon-input').value);
+    if(isNaN(lat)||isNaN(lon))throw new Error(t('errLocation'));
+    const trees=parseInt($(mode==='simple'?'s-count':'p-count').value);
+    if(!trees||trees<1)throw new Error(t('errCount'));
+    let crop,stageKey='',kcArr=null,kcFixed=0,lr,eff,se,hrs=0;
+    if(mode==='simple'){
+      crop=$('s-crop').value;
+      stageKey=$('s-stage').value;
+      lr=parseFloat($('s-soil').value);
+      eff=parseFloat($('s-irr').value);
+      se=SHADOW[crop][stageKey];
+      kcArr=KC[crop];
+    }else{
+      crop=$('p-crop').value;
+      kcFixed=parseFloat($('p-kc').value);
+      if(isNaN(kcFixed)||kcFixed<0.1||kcFixed>1.5)throw new Error(t('errKc'));
+      eff=parseFloat($('p-eff').value);
+      if(isNaN(eff)||eff<0.5||eff>1)throw new Error(t('errEff'));
+      lr=parseFloat($('p-lr').value);
+      if(isNaN(lr)||lr<0||lr>0.4)throw new Error(t('errLR'));
+      se=parseFloat($('p-se').value);
+      if(isNaN(se)||se<=0||se>200)throw new Error(t('errSe'));
+      const hv=$('p-hours').value;
+      if(hv!==''){
+        hrs=parseFloat(hv);
+        if(isNaN(hrs)||hrs<0||hrs>24)throw new Error(t('errHours'));
+      }
+    }
+    btn.disabled=true;statusEl.textContent=t('fetching');
+    const fc=await fetchForecast(lat,lon);
+    statusEl.textContent='';
+    renderCalcResults({mode,crop,stageKey,kcArr,kcFixed,lr,eff,se,trees,hrs,lat,lon,fc});
+  }catch(e){
+    statusEl.textContent='';
+    R.innerHTML=`<div class="result-card result-err">⚠️ ${esc(e.message)}</div>`;
+  }finally{btn.disabled=false}
+}
+
+function resRow(k,v){return `<div class="res-row"><span class="k">${k}</span><span class="v">${v}</span></div>`}
+function renderCalcResults(p){
+  const loc=(lang==='ar')?'ar-EG':'en-US';
+  const rows=[];
+  for(let i=0;i<p.fc.dates.length;i++){
+    const e0=p.fc.et0[i];
+    if(e0==null)continue;
+    const kc=(p.mode==='pro')?p.kcFixed:p.kcArr[new Date(p.fc.dates[i]+'T12:00:00').getMonth()];
+    const c=calcWater(e0,kc,p.se,p.lr,p.eff);
+    rows.push({date:p.fc.dates[i],et0:e0,kc,etc:c.etc,per:c.per,total:c.per*p.trees});
+  }
+  if(!rows.length){$('calc-result').innerHTML=`<div class="result-card result-err">⚠️ ${t('errWeather')}</div>`;return}
+  const td=rows[0];
+  const monthName=new Date(td.date+'T12:00:00').toLocaleString(loc,{month:'long'});
+  const cropName=t(p.crop==='palm'?'cropPalm':'cropCitrus');
+  let html=`<div class="result-card">
+    <div class="res-title">💧 ${t('resTitle')}${p.fc.mock?`<span class="res-mock">${t('mockNote')}</span>`:''}</div>
+    ${resRow(t('resLoc'),`<span class="ltr">${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}</span>`)}
+    ${resRow(t('resCrop'),cropName+(p.mode==='simple'?' — '+t(p.stageKey):''))}
+    ${resRow(t('resMonth'),monthName)}
+    ${resRow('Kc',`<span class="ltr">${td.kc.toFixed(2)}</span>`)}
+    ${resRow('ET₀',`<span class="ltr">${td.et0.toFixed(2)}</span> ${t('mmDay')}`)}
+    ${resRow('ETc',`<span class="ltr">${td.etc.toFixed(2)}</span> ${t('mmDay')}`)}
+    ${resRow('LR',`<span class="ltr">${p.lr}</span>`)}
+    ${resRow('Eff',`<span class="ltr">${p.eff}</span>`)}
+    ${resRow('Se',`<span class="ltr">${p.se}</span> ${t('m2')}`)}
+    ${resRow(t('perPlant'),`<span class="ltr">${td.per.toFixed(1)}</span> ${t('lDay')}`)}
+    ${resRow(`${t('totalNeed')} (${p.trees})`,`<span class="ltr">${td.total.toFixed(0)}</span> ${t('lDay')} · <span class="ltr">${(td.total/1000).toFixed(2)}</span> ${t('m3Day')}`)}
+    ${p.hrs>0?resRow(t('perPlantHr'),`<span class="ltr">${(td.per/p.hrs).toFixed(1)}</span> ${t('lHr')}`)+resRow(t('totalHr'),`<span class="ltr">${(td.total/1000/p.hrs).toFixed(2)}</span> ${t('m3Hr')}`):''}
+  </div>`;
+  if(rows.length>1){
+    html+=`<div class="up-card"><div class="res-title">${t('resUpcoming')}</div>
+      <div class="up-row up-hdr"><span></span><span>ET₀</span><span>${t('lPerPlant')}</span><span>${t('m3Day')}</span></div>
+      ${rows.slice(1).map(r=>{
+        const dl=new Date(r.date+'T12:00:00').toLocaleDateString(loc,{weekday:'short',day:'numeric',month:'numeric'});
+        return `<div class="up-row"><span>${dl}</span><span class="ltr">${r.et0.toFixed(1)}</span><span class="ltr">${r.per.toFixed(1)}</span><span class="ltr">${(r.total/1000).toFixed(2)}</span></div>`;
+      }).join('')}
+    </div>`;
+  }
+  $('calc-result').innerHTML=html;
+}
+
+/* --- connection sub-tab --- */
+async function saveConnection(){
+  $('cfg-host').value=$('adv-host').value.trim();
+  $('cfg-pw').value=$('adv-pw').value;
+  demoMode=false;
+  updateBadge('wait');
+  try{
+    const d=await apiGet('/jn');
+    buildStations(d);
+    connected=true;
+    savePrefs();
+    updateBadge('on');
+    renderStations();populateStationSelect();renderNameEditor();
+    showMsg(t('connectedOk'),true);
+    refreshRunning();
+  }catch(e){
+    connected=false;
+    updateBadge('err');
+    showMsg(t('connectFail'),false);
+  }
+}
+
 /* ================= Init ================= */
 (function init(){
   let savedLang=null,savedTheme=null,auto=false;
@@ -959,6 +1426,11 @@ async function saveNames(){
   }catch(e){}
   setTheme(savedTheme==='light'?'light':'dark');
   setLang(savedLang==='en'?'en':'ar');
+  try{
+    const la=localStorage.getItem(LS.lat),lo=localStorage.getItem(LS.lon);
+    if(la&&lo){$('lat-input').value=la;$('lon-input').value=lo}
+  }catch(e){}
+  syncProKc();
   if(auto)autoConnect();
 })();
 </script>

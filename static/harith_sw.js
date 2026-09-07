@@ -1,7 +1,13 @@
-const CACHE_NAME = "harith-farmer-cache-v1";
+const CACHE_NAME = "harith-farmer-cache-v2";
 const OFFLINE_FILES = [
     "/farmer",
-    "/static/harith_manifest.json"
+    "/static/harith_manifest.json",
+    "/static/logo.png?v=2",
+    "/static/favicon-32.png?v=2",
+    "/static/apple-touch-icon.png?v=2",
+    "/static/icon-192.png",
+    "/static/icon-512.png",
+    "/static/icon-512-maskable.png"
 ];
 
 self.addEventListener("install", (event) => {

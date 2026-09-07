@@ -171,7 +171,12 @@ def index():
 
 @app.route("/favicon.ico")
 def favicon():
-    return app.send_static_file("logo.png")
+    return app.send_static_file("favicon-32.png")
+
+
+@app.route("/apple-touch-icon.png")
+def apple_touch_icon():
+    return app.send_static_file("apple-touch-icon.png")
 
 
 # -------- حارث: API و Dashboard --------

@@ -169,6 +169,11 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/favicon.ico")
+def favicon():
+    return app.send_static_file("logo.png")
+
+
 # -------- حارث: API و Dashboard --------
 
 @app.route("/api/schedule", methods=["GET"])

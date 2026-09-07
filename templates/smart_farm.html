@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpenSprinkler • Irrigation Model</title>
+  <style>
+    :root {
+      --bg1: #eaf2f7;
+      --bg2: #f8fafc;
+      --ink: #1f2937;
+      --muted: #667085;
+      --line: #d9e1e8;
+      --wood1: #ccb089;
+      --wood2: #c19f76;
+      --sky1: #d7efff;
+      --sky2: #f7fbff;
+      --soil1: #c79e6b;
+      --soil2: #b88653;
+      --plot: #dcb07c;
+      --plot-wet: rgba(68, 120, 74, 0.22);
+      --pipe: #bddff6;
+      --pipe-edge: #76b4da;
+      --water1: #86d6ff;
+      --water2: #2385d4;
+      --tank1: #f8fbff;
+      --tank2: #dbe8f1;
+      --green: #16a34a;
+      --green-dark: #166534;
+      --red: #dc2626;
+      --shadow: 0 16px 34px rgba(15, 23, 42, .12);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, var(--bg1), var(--bg2));
+    }
+
+    .screen {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      padding: 16px;
+    }
+
+    .frame {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 26px;
+      overflow: hidden;
+      background: linear-gradient(180deg, #fbfdff 0, #f2f6fa 35%, #eaf0f5 100%);
+      border: 1px solid #dde5ec;
+      box-shadow: var(--shadow);
+    }
+
+    .header {
+      position: absolute;
+      top: 18px;
+      left: 22px;
+      right: 22px;
+      z-index: 20;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+
+    .title h1 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.06;
+      letter-spacing: -.02em;
+      color: #0f172a;
+    }
+
+    .title p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      max-width: 920px;
+    }
+
+    .badge {
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #334155;
+      background: rgba(255,255,255,.82);
+      border: 1px solid #dbe3ea;
+      white-space: nowrap;
+    }
+
+    .stage {
+      position: absolute;
+      inset: 90px 20px 20px 20px;
+    }
+
+    .board-shadow {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: 24px;
+      width: min(920px, 82%);
+      height: 42px;
+      background: rgba(15, 23, 42, .10);
+      border-radius: 999px;
+      filter: blur(18px);
+    }
+
+    .board {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: 8px;
+      width: min(920px, 82%);
+      height: 360px;
+      border-radius: 12px;
+      background:
+        linear-gradient(90deg, rgba(122,86,49,.10) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(122,86,49,.09) 1px, transparent 1px),
+        linear-gradient(180deg, var(--wood1), var(--wood2));
+      background-size: 24px 24px, 24px 24px, auto;
+      border: 1px solid rgba(92,62,34,.24);
+      box-shadow: 0 18px 36px rgba(58,42,23,.20);
+    }
+
+    .device {
+      position: absolute;
+      background: white;
+      border: 1px solid #dce3e9;
+      box-shadow: 0 12px 22px rgba(15, 23, 42, .12);
+      z-index: 3;
+    }
+
+    .wire {
+      position: absolute;
+      border-radius: 999px;
+      z-index: 2;
+      opacity: .98;
+    }
+    .wire.h { height: 6px; }
+    .wire.v { width: 6px; }
+    .wire.red { background: #d72d2d; }
+    .wire.black { background: #1f2937; }
+    .wire.green { background: #2a9d5b; }
+    .wire.yellow { background: #eab308; }
+    .wire.purple { background: #7c3aed; }
+    .wire.gray { background: #94a3b8; }
+
+    .relay-board {
+      left: 28px;
+      top: 50px;
+      width: 238px;
+      height: 250px;
+      background: linear-gradient(180deg, #1e74bb, #155d99);
+      border: 1px solid #0f4e83;
+      border-radius: 10px;
+      color: white;
+      padding: 12px;
+    }
+    .relay-brand {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: 700;
+      opacity: .96;
+      margin-bottom: 10px;
+    }
+    .relay-stack { display: grid; gap: 8px; }
+    .relay-item {
+      height: 48px;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #1d7ed0, #136bb7);
+      border: 2px solid rgba(255,255,255,.16);
+      padding: 7px 10px;
+      position: relative;
+    }
+    .relay-item::before {
+      content: "";
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: #6d1d1d;
+      border: 1px solid rgba(255,255,255,.55);
+    }
+    .relay-item.active::before { background: #ff4d4d; box-shadow: 0 0 10px #ff5d5d; }
+    .relay-label { font-size: 12px; font-weight: 800; }
+    .relay-model { margin-top: 1px; font-size: 10px; opacity: .85; }
+    .relay-bottom {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 7px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      opacity: .9;
+    }
+
+    .ssr {
+      width: 172px;
+      height: 146px;
+      background: linear-gradient(180deg, #f8f9fb, #eef2f6);
+      border: 1px solid #c7ced8;
+      border-radius: 8px;
+      padding: 12px 10px;
+    }
+    .ssr1 { left: 300px; top: 54px; }
+    .ssr2 { left: 488px; top: 54px; }
+    .ssr .window {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      top: 34px;
+      height: 82px;
+      border-radius: 4px;
+      border: 1px solid #c4ccd6;
+      background: linear-gradient(180deg, rgba(255,255,255,.70), rgba(230,236,244,.85));
+    }
+    .ssr .paper {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: white;
+      border-radius: 2px;
+      padding: 4px 14px;
+      font-weight: 900;
+      font-size: 20px;
+      border: 1px solid #e5e7eb;
+      z-index: 3;
+    }
+    .ssr .spec {
+      position: absolute;
+      left: 18px;
+      bottom: 17px;
+      font-size: 11px;
+      color: #475467;
+      z-index: 3;
+      line-height: 1.25;
+    }
+    .ssr .led {
+      position: absolute;
+      right: 18px;
+      bottom: 20px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #6d1d1d;
+      z-index: 3;
+    }
+    .ssr.active .led { background: #ef4444; box-shadow: 0 0 10px #ef4444; }
+    .ssr .terminal {
+      position: absolute;
+      width: 23px;
+      height: 23px;
+      border-radius: 50%;
+      border: 4px solid #80858d;
+      background: #c7ccd2;
+      z-index: 4;
+    }
+    .ssr .terminal.tl { left: 16px; top: 6px; }
+    .ssr .terminal.tr { right: 16px; top: 6px; }
+    .ssr .terminal.bl { left: 16px; bottom: 6px; }
+    .ssr .terminal.br { right: 16px; bottom: 6px; }
+
+    .opensprinkler {
+      right: 36px;
+      bottom: 36px;
+      width: 314px;
+      height: 138px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #ffffff, #f5f7fa);
+      overflow: hidden;
+    }
+    .opensprinkler::before {
+      content: "";
+      position: absolute;
+      left: -30px;
+      right: -30px;
+      bottom: 24px;
+      height: 34px;
+      border-top: 3px solid #dfe5eb;
+      border-radius: 50%;
+      transform: rotate(-2deg);
+      opacity: .9;
+    }
+    .lcd {
+      position: absolute;
+      left: 72px;
+      top: 34px;
+      width: 148px;
+      height: 50px;
+      border: 8px solid #303030;
+      border-radius: 6px;
+      background: linear-gradient(180deg, #cfe58b, #9fc45b);
+      box-shadow: inset 0 0 10px rgba(0,0,0,.22);
+      padding: 5px 7px;
+      font-family: "Courier New", monospace;
+      font-size: 10px;
+      font-weight: 700;
+      color: #1d2d14;
+      white-space: pre-line;
+    }
+    .os-logo {
+      position: absolute;
+      left: 92px;
+      bottom: 16px;
+      font-size: 22px;
+      font-weight: 800;
+      color: #101828;
+      letter-spacing: -.02em;
+    }
+    .os-logo .spark {
+      color: #41c6d6;
+      letter-spacing: 2px;
+      font-size: 15px;
+      vertical-align: top;
+      margin-left: 3px;
+    }
+    .green-terminal {
+      position: absolute;
+      width: 30px;
+      height: 22px;
+      background: linear-gradient(180deg, #46b86a, #2f9b51);
+      border-radius: 4px;
+      bottom: -8px;
+      border: 1px solid #277a41;
+    }
+    .term-left { left: 22px; }
+    .term-right { right: 22px; }
+
+    .board-tag {
+      position: absolute;
+      right: 20px;
+      top: 14px;
+      background: rgba(255,255,255,.82);
+      border: 1px solid #dbe3ea;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      color: #334155;
+      font-weight: 700;
+      z-index: 5;
+    }
+
+    .farm {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      top: 398px;
+      overflow: hidden;
+      background: linear-gradient(180deg, var(--sky1) 0, var(--sky2) 42%, #f0e0c6 42%, #dfba8f 72%, #cea06c 100%);
+      border-top: 1px solid rgba(120, 145, 164, .18);
+    }
+
+    .farm::before {
+      content: "";
+      position: absolute;
+      left: -10%;
+      right: -10%;
+      top: 100px;
+      height: 120px;
+      background:
+        radial-gradient(circle at 18% 65%, rgba(255,255,255,.95) 0 35px, transparent 36px),
+        radial-gradient(circle at 23% 70%, rgba(255,255,255,.8) 0 22px, transparent 23px),
+        radial-gradient(circle at 72% 35%, rgba(255,255,255,.95) 0 34px, transparent 35px),
+        radial-gradient(circle at 78% 42%, rgba(255,255,255,.82) 0 22px, transparent 23px);
+      opacity: .7;
+    }
+
+    .section-label {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: 14px;
+      background: rgba(255,255,255,.88);
+      border: 1px solid #dde5ec;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #334155;
+      z-index: 10;
+    }
+
+    .tank-wrap {
+      position: absolute;
+      left: 58px;
+      top: 62px;
+      width: 168px;
+      z-index: 4;
+    }
+
+    .tank-label {
+      text-align: center;
+      font-size: 13px;
+      font-weight: 800;
+      color: #334155;
+      margin-bottom: 8px;
+      background: rgba(255,255,255,.85);
+      border: 1px solid #dbe3ea;
+      border-radius: 999px;
+      padding: 7px 10px;
+    }
+
+    .tank {
+      position: relative;
+      height: 164px;
+      border-radius: 24px 24px 22px 22px;
+      background: linear-gradient(180deg, var(--tank1), var(--tank2));
+      border: 8px solid #6f7a83;
+      overflow: hidden;
+      box-shadow: inset 0 0 20px rgba(0,0,0,.12), 0 12px 20px rgba(15, 23, 42, .10);
+    }
+
+    .tank-top {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      top: 10px;
+      height: 20px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.72);
+      border: 1px solid rgba(111,122,131,.35);
+      z-index: 2;
+    }
+
+    .tank-water {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 72%;
+      background: linear-gradient(180deg, var(--water1), var(--water2));
+      transition: height .45s ease;
+    }
+
+    .tank-water::before {
+      content: "";
+      position: absolute;
+      left: -10%;
+      top: -8px;
+      width: 120%;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(236,249,255,.72);
+      animation: waterWave 2.8s ease-in-out infinite alternate;
+    }
+
+    @keyframes waterWave { to { transform: translateX(26px) translateY(2px); } }
+
+    .tank-level {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      font-size: 12px;
+      font-weight: 800;
+      color: #334155;
+      background: rgba(255,255,255,.78);
+      border-radius: 8px;
+      padding: 4px 7px;
+      z-index: 3;
+    }
+
+    .pipe {
+      position: absolute;
+      background: var(--pipe);
+      border: 5px solid var(--pipe-edge);
+      border-radius: 999px;
+      overflow: hidden;
+      z-index: 2;
+    }
+    .pipe.h { height: 34px; }
+    .pipe.v { width: 34px; }
+    .flow {
+      position: absolute;
+      inset: 2px;
+      border-radius: 999px;
+      opacity: 0;
+      background: repeating-linear-gradient(90deg, #63c5ff 0 24px, #daf2ff 24px 38px, #63c5ff 38px 62px);
+      background-size: 130px 100%;
+    }
+    .pipe.v .flow {
+      background: repeating-linear-gradient(180deg, #63c5ff 0 24px, #daf2ff 24px 38px, #63c5ff 38px 62px);
+      background-size: 100% 130px;
+    }
+    .pipe.flowing .flow { opacity: 1; animation: flowX .8s linear infinite; }
+    .pipe.v.flowing .flow { animation: flowY .8s linear infinite; }
+    @keyframes flowX { to { background-position: 130px 0; } }
+    @keyframes flowY { to { background-position: 0 130px; } }
+
+    .main-line { left: 216px; top: 170px; width: 324px; }
+    .branch1 { left: 540px; top: 170px; height: 86px; }
+    .branch2 { left: 720px; top: 170px; height: 86px; }
+    .to-v1 { left: 540px; top: 256px; width: 118px; }
+    .to-v2 { left: 720px; top: 256px; width: 118px; }
+    .out-v1 { left: 822px; top: 256px; width: 146px; }
+    .out-v2 { left: 1000px; top: 256px; width: 150px; }
+    .to-zone1 { left: 956px; top: 256px; height: 96px; }
+    .to-zone2 { left: 1138px; top: 256px; height: 96px; }
+    .zone-line1 { left: 906px; top: 352px; width: 124px; }
+    .zone-line2 { left: 1088px; top: 352px; width: 124px; }
+
+    .valve {
+      position: absolute;
+      width: 164px;
+      height: 94px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, #59616a, #454d55);
+      border: 4px solid #31373d;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 12px 18px rgba(0,0,0,.18);
+      z-index: 4;
+      transition: background .25s ease, border-color .25s ease;
+    }
+    .valve::before, .valve::after {
+      content: "";
+      position: absolute;
+      top: 32px;
+      width: 34px;
+      height: 26px;
+      background: inherit;
+      border-top: 4px solid inherit;
+      border-bottom: 4px solid inherit;
+    }
+    .valve::before { left: -34px; }
+    .valve::after { right: -34px; }
+    .valve1 { left: 658px; top: 223px; }
+    .valve2 { left: 836px; top: 223px; }
+    .wheel {
+      position: absolute;
+      top: -42px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 8px solid #1f2937;
+      background: #8fa0ad;
+      transition: transform .4s ease;
+    }
+    .wheel::before, .wheel::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      background: #1f2937;
+      border-radius: 3px;
+    }
+    .wheel::before { width: 42px; height: 7px; }
+    .wheel::after { width: 7px; height: 42px; }
+    .valve.open {
+      background: linear-gradient(180deg, #278058, #1c6947);
+      border-color: #155339;
+    }
+    .valve.open .wheel { transform: rotate(90deg); }
+    .valve .state {
+      font-size: 17px;
+      font-weight: 900;
+      letter-spacing: .04em;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .valve small {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      opacity: .95;
+      margin-top: 4px;
+    }
+
+    .zone {
+      position: absolute;
+      width: 300px;
+      height: 210px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, #e8c79b, #c7925d);
+      border: 2px solid rgba(103, 74, 46, .25);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.18), 0 14px 22px rgba(87, 60, 31, .12);
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .zone::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(90deg, rgba(134,92,56,.17) 0 3px, transparent 3px 52px),
+        repeating-linear-gradient(0deg, rgba(134,92,56,.09) 0 3px, transparent 3px 46px);
+      opacity: .55;
+    }
+
+    .zone::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: var(--plot-wet);
+      opacity: 0;
+      transition: opacity .45s ease;
+    }
+
+    .zone.active::after { opacity: 1; }
+
+    .zone1 { left: 812px; top: 382px; }
+    .zone2 { left: 1086px; top: 382px; }
+
+    .zone-header {
+      position: absolute;
+      top: 12px;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 4;
+    }
+
+    .zone-title {
+      font-size: 13px;
+      font-weight: 900;
+      color: #4a2f18;
+      background: rgba(255,255,255,.7);
+      border-radius: 999px;
+      padding: 6px 10px;
+      border: 1px solid rgba(103, 74, 46, .12);
+    }
+
+    .zone-status {
+      font-size: 11px;
+      font-weight: 800;
+      color: #6b2b1d;
+      background: rgba(255,255,255,.74);
+      border-radius: 999px;
+      padding: 5px 8px;
+      border: 1px solid rgba(103, 74, 46, .12);
+    }
+
+    .zone.active .zone-status {
+      color: #14532d;
+    }
+
+    .drip-line {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 30px;
+      height: 10px;
+      border-radius: 999px;
+      background: #6f8799;
+      z-index: 2;
+    }
+
+    .dripper {
+      position: absolute;
+      bottom: -2px;
+      width: 8px;
+      height: 16px;
+      background: #55697a;
+      border-radius: 0 0 5px 5px;
+    }
+    .dripper:nth-child(1){ left: 42px; }
+    .dripper:nth-child(2){ left: 106px; }
+    .dripper:nth-child(3){ left: 170px; }
+    .dripper:nth-child(4){ left: 234px; }
+
+    .drop {
+      position: absolute;
+      width: 8px;
+      height: 12px;
+      background: linear-gradient(180deg, #c4efff, #3bb4ff);
+      border-radius: 50% 50% 60% 60%;
+      opacity: 0;
+      top: 12px;
+      left: 0;
+    }
+
+    .zone.active .drop { opacity: 1; animation: drip 1.1s ease-in infinite; }
+    .zone.active .dripper:nth-child(2) .drop { animation-delay: .22s; }
+    .zone.active .dripper:nth-child(3) .drop { animation-delay: .45s; }
+    .zone.active .dripper:nth-child(4) .drop { animation-delay: .68s; }
+
+    @keyframes drip {
+      0%   { transform: translateY(0) scale(.85); opacity: 0; }
+      22%  { opacity: 1; }
+      100% { transform: translateY(34px) scale(1.02); opacity: 0; }
+    }
+
+    .palm-group {
+      position: absolute;
+      left: 22px;
+      right: 22px;
+      bottom: 46px;
+      height: 120px;
+      z-index: 3;
+      display: flex;
+      justify-content: space-around;
+      align-items: end;
+    }
+
+    .palm {
+      position: relative;
+      width: 82px;
+      height: 112px;
+    }
+
+    .trunk {
+      position: absolute;
+      left: 50%;
+      bottom: 0;
+      transform: translateX(-50%);
+      width: 18px;
+      height: 64px;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #8e6238, #6d4625);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+    }
+
+    .trunk::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(180deg, transparent 0 6px, rgba(48,24,8,.14) 6px 8px);
+      border-radius: inherit;
+      opacity: .75;
+    }
+
+    .crown {
+      position: absolute;
+      left: 50%;
+      top: 14px;
+      width: 74px;
+      height: 44px;
+      transform: translateX(-50%);
+    }
+
+    .leaf {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 44px;
+      height: 14px;
+      border-radius: 20px 20px 20px 2px;
+      transform-origin: left center;
+      background: linear-gradient(90deg, #3fa45f, #1f7d3c);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+    }
+    .leaf.l1 { transform: translate(-12px, -8px) rotate(-70deg); }
+    .leaf.l2 { transform: translate(-12px, -8px) rotate(-35deg); }
+    .leaf.l3 { transform: translate(-12px, -8px) rotate(0deg); }
+    .leaf.l4 { transform: translate(-12px, -8px) rotate(35deg); }
+    .leaf.l5 { transform: translate(-12px, -8px) rotate(70deg); }
+    .leaf.l6 { transform: translate(-12px, -8px) rotate(110deg); }
+
+    .mini-dates {
+      position: absolute;
+      left: 50%;
+      top: 56px;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 5px;
+    }
+    .date {
+      width: 6px;
+      height: 8px;
+      background: #8b5a2b;
+      border-radius: 4px;
+    }
+
+    .legend {
+      position: absolute;
+      left: 26px;
+      right: 26px;
+      bottom: 16px;
+      z-index: 12;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      background: rgba(255,255,255,.84);
+      border: 1px solid #dbe3ea;
+      border-radius: 16px;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #475467;
+    }
+
+    .legend strong { color: #0f172a; }
+
+    .mini-states {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .mini-pill {
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: #f8fafc;
+      border: 1px solid #dce4eb;
+      color: #334155;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    @media (max-width: 1300px) {
+      .title h1 { font-size: 24px; }
+      .title p { font-size: 13px; }
+      .board, .board-shadow { width: 92%; }
+      .zone1 { left: 720px; }
+      .zone2 { left: 1000px; }
+    }
+  
+/* Visual model: one proportionally scaled canvas, with a stacked mobile layout. */
+:root { --ink:#e4edf6; --muted:#8da2b7; --pipe:#243f54; --pipe-edge:#517188; }
+html,body {background:#080f19;color:var(--ink);overflow:auto;}
+.screen {padding:0;width:100%;height:100svh;min-height:560px;}
+.frame {border:0;border-radius:0;background:radial-gradient(ellipse at 50% 0%,#183347 0%,#0d1927 48%,#0a1420 100%);box-shadow:none;display:flex;flex-direction:column;overflow:hidden;}
+.header {position:relative;inset:auto;margin:0 32px;padding:24px 0 20px;align-items:center;border-bottom:1px solid #263747;}
+.title h1 {font-size:28px;color:#eff7ff;letter-spacing:-1px;font-weight:650;}
+.title h1 span {color:#52d3c5;font-weight:400;}
+.title p {font-size:14px;margin:7px 0 0;color:#9aafc1;}
+.badge {font-size:12px;letter-spacing:1.3px;text-transform:uppercase;border-radius:6px;background:#152c36;border-color:#2a4c52;color:#8fe4d9;padding:10px 13px;}
+.stage {position:relative;inset:auto;flex:1;min-height:0;margin:18px 26px;overflow:hidden;}
+.scene {position:absolute;width:1320px;height:790px;transform-origin:top left;}
+.board-shadow {display:none;}
+.board {left:0;top:0;transform:none;width:1320px;height:262px;border:1px solid #3b5060;border-radius:16px;background:radial-gradient(circle,#54657466 1px,transparent 1.5px),linear-gradient(120deg,#2a3b49,#202e3c);background-size:16px 16px,auto;box-shadow:0 14px 30px #0004,inset 0 1px #ffffff14;}
+.board-tag {left:24px;right:auto;top:18px;padding:0;border:0;background:none;border-radius:0;font-size:14px;letter-spacing:1.7px;color:#bcd0de;}
+.board-tag b,.section-label b {color:#55d7c6;margin-right:12px;font-size:13px;}
+.board-note {position:absolute;right:24px;top:20px;font-size:12px;color:#a1b4c5;letter-spacing:.7px;}
+.device {box-shadow:0 12px 18px #0006,inset 0 1px #ffffff55;}
+.opensprinkler {left:40px;right:auto;top:80px;bottom:auto;width:320px;height:148px;border-radius:15px;border:2px solid #c1cdd4;background:linear-gradient(125deg,#f6fafc,#d3dde4);overflow:visible;}
+.lcd {left:36px;top:23px;width:245px; height:64px;border:7px solid #2b373c;font-size:14px;line-height:1.45;padding:4px 9px;background:linear-gradient(#cdeba0,#a3c579);box-shadow:0 2px 1px #fff8,inset 0 0 12px #31422d55;}
+.os-logo {left:65px;bottom:15px;font-size:23px;}
+.green-terminal {bottom:-9px;width:45px;background:repeating-linear-gradient(90deg,transparent 0 8px,#194629 9px 10px),linear-gradient(#58b571,#297240);}
+.relay-board {left:480px;top:68px;width:338px;height:166px;padding:12px;border-radius:9px;background:linear-gradient(135deg,#12596b,#093c4e);border:2px solid #35798b;}
+.relay-brand {font-size:12px;letter-spacing:.5px;margin-bottom:10px;}
+.relay-stack {grid-template-columns:1fr 1fr;gap:9px;}
+.relay-item {height:53px;border-radius:4px;background:linear-gradient(130deg,#358ac4,#176197);border:1px solid #73b2d855;box-shadow:2px 3px 0 #062c48;padding:8px;}
+.relay-label {font-size:13px;letter-spacing:.6px;}
+.relay-model {display:none;}
+.relay-bottom {font-size:11px;left:8px;bottom:7px;right:24px;}
+.relay-item::before {height:8px;width:8px;right:9px;background:#4d6977;border-color:#94b0bc;}
+.relay-item.active::before {background:#64f2b2;box-shadow:0 0 12px #43f4a3;}
+.ssr {top:80px;width:158px;height:148px;border-radius:10px;background:linear-gradient(120deg,#e8eef2,#bdcbd4);border:2px solid #7e929e;}
+.ssr1 {left:932px;}.ssr2 {left:1120px;}
+.ssr .paper {top:40px;font-size:23px;color:#253b48;background:none;border:0;padding:0;}
+.ssr .window {top:31px;left:11px;right:11px;height:78px;background:#f5f8fa;border-color:#b3c0c8;}
+.ssr .spec {font-size:12px;left:20px;bottom:40px;line-height:1.3;}
+.ssr .terminal {width:21px;height:21px;border-width:3px;background:linear-gradient(135deg,#9eacb6 42%,#40515d 44% 53%,#c8d1d9 55%);}
+.ssr .led {width:8px;height:8px;right:22px;bottom:46px;background:#7b8b95;}
+.ssr.active .led {background:#2bc487;box-shadow:0 0 10px #2bc487;}
+.wire {display:none;}
+.wiring {position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;}
+.wiring path {fill:none;stroke-width:3;stroke-linejoin:round;stroke-linecap:round;}
+.hardware-label {position:absolute;top:49px;font-size:12px;color:#b9cbd8;letter-spacing:1px;}
+.farm {top:282px;left:0;right:auto;bottom:auto;width:1320px;height:508px;border:1px solid #2d4559;border-radius:16px;background:radial-gradient(ellipse at 9% 52%,#1f445866,transparent 42%),linear-gradient(135deg,#142636,#102030);overflow:hidden;}
+.farm::before {inset:0;width:100%;height:100%;background:linear-gradient(#547b9012 1px,transparent 1px),linear-gradient(90deg,#547b9012 1px,transparent 1px);background-size:32px 32px;opacity:1;}
+.section-label {left:24px;top:20px;transform:none;padding:0;border:0;border-radius:0;background:none;font-size:14px;letter-spacing:1.6px;color:#bdd0de;}
+.tank-wrap {left:44px;top:140px;width:180px;}
+.tank-label {color:#cbdbe8;background:none;border:0;border-radius:0;font-size:14px;letter-spacing:.4px;margin:0 0 15px;padding:0;}
+.tank {height:238px;border-radius:27px 27px 20px 20px;border:5px solid #8babbc;background:linear-gradient(90deg,#bbd9e41a,#d3eff422,#bbd9e40a);box-shadow:inset 8px 0 16px #fff1,inset -8px 0 16px #0004,0 15px 28px #0005;}
+.tank-top {top:12px;background:#cce6ef22;border-color:#c0e7f533;}
+.tank-water {background:linear-gradient(100deg,#50c8eabb,#1596c1cc 45%,#0877a1ee);box-shadow:inset 9px 0 12px #b5f2ff22;}
+.tank-water::before {background:#94eff3aa;height:13px;top:-5px;animation-duration:4s;}
+.tank-level {top:62px;left:0;right:0;text-align:center;font-size:34px;color:#edfaff;letter-spacing:-1.2px;font-weight:500;background:none;text-shadow:0 2px 8px #144d6c;}
+.pipe {border-width:3px;border-radius:10px;background:linear-gradient(#294b62,#183244);border-color:#4b6e83;box-shadow:0 4px 8px #0005,inset 0 1px #c0eeff22;}
+.pipe.h { height:24px;}.pipe.v {width:24px;}
+.flow {inset:3px;background:repeating-linear-gradient(90deg,#38c8ef88 0 25px,#a6f6ff 26px 31px,#38c8ef88 32px 60px);background-size:120px 100%;}
+.pipe.v .flow {background:repeating-linear-gradient(180deg,#38c8ef88 0 25px,#a6f6ff 26px 31px,#38c8ef88 32px 60px);background-size:100% 120px;}
+.pipe.flowing .flow {animation-duration:1.5s;}.pipe.v.flowing .flow {animation-duration:1.5s;}
+.main-line {left:216px;top:110px;width:830px;}
+.branch1 {left:216px;top:110px;height:240px;}
+.branch2 {left:594px;top:110px;height:96px;}
+.to-v1 {display:none;}.to-v2 {left:1022px;top:110px;width:24px;height:96px!important;}
+.to-v2 .flow {background:repeating-linear-gradient(180deg,#38c8ef88 0 25px,#a6f6ff 26px 31px,#38c8ef88 32px 60px);background-size:100% 120px;animation-name:flowY!important;}
+.out-v1 {left:594px;top:228px;width:24px;height:68px!important;}.out-v2 {left:1022px;top:228px;width:24px;height:68px!important;}
+.out-v1 .flow,.out-v2 .flow {background:repeating-linear-gradient(180deg,#38c8ef88 0 25px,#a6f6ff 26px 31px,#38c8ef88 32px 60px);background-size:100% 120px;animation-name:flowY!important;}
+.to-zone1,.to-zone2 {display:none;}
+.zone-line1 {left:433px;top:449px;width:342px;}.zone-line2 {left:861px;top:449px;width:342px;}
+.valve {width:152px;height:82px;border-radius:12px;border:3px solid #809ba8;background:linear-gradient(130deg,#587080,#304c5d);box-shadow:0 8px 16px #0006,inset 0 1px #d1ecf333;}
+.valve1 {left:530px;top:188px;}.valve2 {left:958px;top:188px;}
+.valve::before,.valve::after {width:28px;height:20px;left:59px;right:auto;background:linear-gradient(90deg,#607e8f,#aec0c8,#607e8f);border:1px solid #526f7f;}
+.valve::before {top:-20px;}.valve::after {top:auto;bottom:-20px;}
+.wheel {top:-18px;left:-28px;width:48px;height:48px;background:#324d5d;border:6px solid #a0b4bf;box-shadow:0 3px 6px #0007;}
+.wheel::before,.wheel::after {background:#a0b4bf;}.wheel::before {width:33px;height:5px;}.wheel::after {height:33px;width:5px;}
+.valve .state {font-size:17px;letter-spacing:1px;font-weight:600;}.valve small {font-size:12px;letter-spacing:1.7px;color:#d0dde4;}
+.valve.open {border-color:#65d7b6;background:linear-gradient(120deg,#277d70,#19524f);box-shadow:0 0 24px #3bebbb22,inset 0 1px #c0ffee44;}
+.valve.open small {color:#90ffdb;}
+.zone {width:370px;height:191px;top:296px;border-radius:12px;background:linear-gradient(145deg,#73624a,#514737);border:1px solid #ae936759;box-shadow:0 10px 20px #0005,inset 0 1px #dfd0b122;}
+.zone1 {left:420px;}.zone2 {left:848px;}
+.zone::before {background:repeating-linear-gradient(90deg,transparent 0 49px,#c5a87e22 50px 52px);opacity:.7;}
+.zone::after {background:linear-gradient(#2d916a22,#28767088);transition:opacity .7s;}
+.zone-header {left:14px;right:14px;top:12px;}
+.zone-title {background:none;border:0;border-radius:0;padding:0;color:#f4ecdf;font-size:14px;letter-spacing:.4px;font-weight:600;}
+.zone-status {font-size:12px;padding:4px 9px;background:#1d272855;border:1px solid #acbba633;color:#dedfcd;border-radius:5px;}
+.zone.active .zone-status {background:#194e43;color:#b1f4d4;border-color:#4b997c;}
+.palm-group {left:25px;right:25px;bottom:34px;height:113px;}
+.trunk {background:linear-gradient(90deg,#644129,#ab7c48,#78532f);}
+.leaf {background:linear-gradient(120deg,#63af74,#237444);filter:drop-shadow(0 3px 2px #092f2744);}
+.drip-line {left:14px;right:14px;bottom:24px;height:8px;background:#294a54;}
+.dripper:nth-child(1){left:40px;}.dripper:nth-child(2){left:123px;}.dripper:nth-child(3){left:206px;}.dripper:nth-child(4){left:289px;}
+.legend {position:relative;inset:auto;left:auto;right:auto;bottom:auto;margin:0 32px;padding:14px 0 20px;border:0;border-top:1px solid #2c4051;background:none;border-radius:0;color:#90a7bb;font-size:12px;}
+.legend strong {color:#c6d9e8;}.mini-states {gap:8px;flex-wrap:nowrap;}
+.mini-pill {font-size:12px;font-weight:500;background:#152737;border:1px solid #32485a;border-radius:6px;color:#bfcedb;padding:7px 10px;white-space:nowrap;}
+.mini-pill.on {color:#91f3d0;background:#153d36;border-color:#2c695b;}
+.flow-caption {position:absolute;left:270px;top:80px;font-size:12px;letter-spacing:1.5px;color:#8bb4c9;}
+@media (max-width:700px) {
+ .screen {height:auto;min-height:100svh;}.frame {min-height:100svh;}.header {margin:0 16px;padding:20px 0;}.title h1 {font-size:24px;}.title p {font-size:12px;}.badge {display:none;}
+ .stage {flex:none;margin:16px 12px;}.scene {width:660px;height:1330px;}.board {width:660px;height:475px;}.board-note {display:none;}
+ .opensprinkler {left:30px;top:75px;}.relay-board {left:30px;top:270px;}.ssr1 {left:460px;top:75px;}.ssr2 {left:460px;top:270px;}.wiring {display:none;}.hardware-label {display:none;}
+ .farm {top:495px;width:660px;height:835px;}.tank-wrap {left:20px;top:270px;width:145px;}.tank {height:225px;}
+ .main-line {left:157px;top:400px;width:56px;}.branch1 {left:190px;top:110px;height:424px;}.branch2 {left:190px;top:110px;width:288px;height:24px;}.to-v2 {left:190px;top:510px;width:288px;height:24px!important;}.to-v1 {display:block;left:453px;top:110px;width:24px;height:45px!important;}.to-zone2 {display:block;left:453px;top:510px;height:45px;}
+ .valve1 {left:389px;top:151px;}.valve2 {left:389px;top:555px;}.out-v1 {left:453px;top:228px;height:45px!important;}.out-v2 {left:453px;top:632px;height:24px!important;}
+ .zone1 {left:270px;top:275px;}.zone2 {left:270px;top:655px;}.zone {width:370px;height:165px;}.zone-line1 {left:284px;top:402px;width:342px;}.zone-line2 {left:284px;top:782px;width:342px;}.palm-group {transform:scale(.83);transform-origin:bottom center;bottom:28px;}.flow-caption {left:270px;top:79px;}
+ .legend {margin:0 16px;flex-direction:column;align-items:flex-start;gap:12px;}.legend>div:first-child {display:none;}.mini-states {flex-wrap:wrap;}
+}
+@media (prefers-reduced-motion:reduce) {*,*::before,*::after {animation:none!important;transition:none!important;}}
+
+  
+/* Restore the outdoor farm setting around the retained hardware and pipe model. */
+.farm {
+  border-color:#779faf;
+  background:linear-gradient(180deg,
+    #91cff0 0%, #c3e8f8 29%, #eaf5ef 43%,
+    #91ad68 43.3%, #b7bd7e 47%, #d5be8d 57%,
+    #c6a46e 79%, #b68e59 100%);
+  box-shadow:inset 0 1px 0 #ffffff70,0 12px 24px #0003;
+}
+.farm::before {
+  left:-10%;right:-10%;top:38px;bottom:auto;
+  width:120%;height:165px;
+  background:
+    radial-gradient(ellipse at 18% 45%,#ffffffd9 0 43px,transparent 45px),
+    radial-gradient(ellipse at 22% 51%,#ffffffd9 0 59px,transparent 61px),
+    radial-gradient(ellipse at 26% 49%,#ffffffb8 0 37px,transparent 39px),
+    radial-gradient(ellipse at 66% 24%,#ffffffb8 0 43px,transparent 45px),
+    radial-gradient(ellipse at 71% 29%,#ffffffcc 0 63px,transparent 65px),
+    radial-gradient(ellipse at 76% 34%,#ffffffb8 0 37px,transparent 39px);
+  background-size:auto;opacity:.8;
+}
+.section-label {color:#284c5b;text-shadow:0 1px #ffffff88;}
+.section-label b {color:#287b69;}
+.flow-caption {color:#345c70;text-shadow:0 1px #ffffff88;}
+.tank-label {color:#284c5b;text-shadow:0 1px 3px #ffffffbb;}
+.zone {
+  background:linear-gradient(150deg,#d5b67e,#ba915b);
+  border-color:#93703f55;border-radius:20px 20px 30px 30px;
+  box-shadow:inset 0 2px 0 #ecd6a655,0 8px 14px #70552525;
+}
+.zone::before {
+  background:repeating-linear-gradient(90deg,
+    transparent 0 46px,#96714033 47px 49px,
+    #eed7a63d 50px 53px,transparent 54px 61px);
+  opacity:.8;
+}
+.zone::after {background:linear-gradient(#60844915,#526c4866);}
+.zone-title {
+  color:#4b3b22;background:#ffefd2c9;border:1px solid #fff5dd66;
+  border-radius:6px;padding:5px 8px;text-shadow:none;
+}
+.zone-status {
+  color:#59462d;background:#fff1d5d6;border-color:#ddc8a2;
+}
+.zone.active .zone-status {
+  color:#205b3b;background:#e2f1cce8;border-color:#93b776;
+}
+.leaf {background:linear-gradient(120deg,#65ad57,#28743b);filter:drop-shadow(0 3px 2px #36532733);}
+@media (max-width:700px) {
+  .farm {background:linear-gradient(180deg,
+    #91cff0 0%,#c3e8f8 20%,#eaf5ef 30%,
+    #91ad68 30.3%,#b7bd7e 34%,#d5be8d 44%,#c6a46e 79%,#b68e59 100%);}
+  .farm::before {top:60px;}
+}
+
+  
+button.mini-pill {font-family:inherit;cursor:pointer;min-height:44px;min-width:132px;transition:background .2s,border-color .2s,box-shadow .2s;}
+button.mini-pill:hover {background:#254456;border-color:#69afbe;}
+button.mini-pill.on:hover {background:#215849;border-color:#6cdbb5;}
+button.mini-pill:focus-visible {outline:3px solid #83e9dc;outline-offset:3px;}
+button.mini-pill:active {box-shadow:inset 0 2px 6px #0005;}
+  </style>
+</head>
+<body>
+  <div class="screen">
+    <div class="frame">
+      <div class="header">
+        <div class="title">
+          <h1>OpenSprinkler <span>/ Smart farm</span></h1>
+          <p>Prototype board &nbsp; / &nbsp; Two-zone irrigation model</p>
+        </div>
+        <div class="badge">Simulation mode</div>
+      </div>
+
+      <div class="stage"><div class="scene">
+        <div class="board-shadow"></div>
+        <div class="board">
+          <div class="board-tag"><b>01</b> PROTOTYPE BOARD</div><div class="board-note">CONTROLLER · RELAY MODULE · SOLID-STATE RELAYS</div><span class="hardware-label" style="left:40px">CONTROLLER</span><span class="hardware-label" style="left:480px">4-CHANNEL RELAY</span>
+
+          <div class="device relay-board">
+            <div class="relay-brand"><span>SONGLE</span><span>4 Relay Module</span></div>
+            <div class="relay-stack">
+              <div class="relay-item" id="relay1"><div class="relay-label">RELAY 1</div><div class="relay-model">SRD-05VDC-SL-C</div><div class="relay-bottom"><span>IN1</span><span>VALVE 1</span></div></div>
+              <div class="relay-item" id="relay2"><div class="relay-label">RELAY 2</div><div class="relay-model">SRD-05VDC-SL-C</div><div class="relay-bottom"><span>IN2</span><span>VALVE 2</span></div></div>
+              <div class="relay-item"><div class="relay-label">RELAY 3</div><div class="relay-model">SRD-05VDC-SL-C</div><div class="relay-bottom"><span>IN3</span><span>SPARE</span></div></div>
+              <div class="relay-item"><div class="relay-label">RELAY 4</div><div class="relay-model">SRD-05VDC-SL-C</div><div class="relay-bottom"><span>IN4</span><span>SPARE</span></div></div>
+            </div>
+          </div>
+
+          <div class="device ssr ssr1" id="ssr1">
+            <span class="terminal tl"></span><span class="terminal tr"></span><span class="terminal bl"></span><span class="terminal br"></span>
+            <div class="paper">SSR1</div>
+            <div class="window"></div>
+            <div class="spec">Channel 01</div>
+            <div class="led"></div>
+          </div>
+
+          <div class="device ssr ssr2" id="ssr2">
+            <span class="terminal tl"></span><span class="terminal tr"></span><span class="terminal bl"></span><span class="terminal br"></span>
+            <div class="paper">SSR2</div>
+            <div class="window"></div>
+            <div class="spec">Channel 02</div>
+            <div class="led"></div>
+          </div>
+
+          <div class="device opensprinkler">
+            <div class="lcd" id="lcdScreen">ZONE1: OFF  ZONE2: OFF
+MODE: FARM MVP</div>
+            <div class="os-logo">OpenSprinkler<span class="spark">····</span></div>
+            <div class="green-terminal term-left"></div>
+            <div class="green-terminal term-right"></div>
+          </div>
+
+          <!-- Conceptual signal connections; not an electrical wiring diagram. -->
+          <svg class="wiring" viewBox="0 0 1320 262" aria-label="Conceptual control signal paths">
+            <path d="M360 133 H420 Q432 133 432 145 V151 Q432 161 443 161 H480" stroke="#63cbb9"/>
+            <path d="M360 149 H407 Q418 149 418 160 V174 Q418 186 430 186 H480" stroke="#e4b868"/>
+            <path d="M818 133 H871 Q887 133 887 117 V104 Q887 92 899 92 H932" stroke="#63cbb9"/>
+            <path d="M818 190 H850 Q864 190 864 205 V238 Q864 248 877 248 H1087 Q1100 248 1100 232 V111 Q1100 92 1116 92 H1120" stroke="#e4b868"/>
+          </svg>
+          <div class="wire h green" style="left: 228px; top: 92px; width: 54px;"></div>
+          <div class="wire h yellow" style="left: 228px; top: 104px; width: 54px;"></div>
+          <div class="wire h purple" style="left: 228px; top: 116px; width: 54px;"></div>
+          <div class="wire h gray" style="left: 228px; top: 128px; width: 54px;"></div>
+
+          <div class="wire h red" style="left: 266px; top: 122px; width: 36px;"></div>
+          <div class="wire h black" style="left: 266px; top: 134px; width: 36px;"></div>
+          <div class="wire h red" style="left: 472px; top: 122px; width: 18px;"></div>
+          <div class="wire h black" style="left: 472px; top: 134px; width: 18px;"></div>
+
+          <div class="wire h red" style="left: 248px; top: 254px; width: 418px;"></div>
+          <div class="wire h black" style="left: 248px; top: 266px; width: 418px;"></div>
+          <div class="wire v red" style="left: 648px; top: 198px; height: 58px;"></div>
+          <div class="wire v black" style="left: 660px; top: 198px; height: 58px;"></div>
+        </div>
+
+        <div class="farm">
+          <div class="section-label"><b>02</b> FARM IRRIGATION</div><div class="flow-caption">SUPPLY LINE</div>
+
+          <div class="tank-wrap">
+            <div class="tank-label">Water source tank</div>
+            <div class="tank">
+              <div class="tank-top"></div>
+              <div class="tank-level" id="tankLevel">72%</div>
+              <div class="tank-water" id="tankWater"></div>
+            </div>
+          </div>
+
+          <div class="pipe h main-line flowing"><div class="flow"></div></div>
+          <div class="pipe v branch1 flowing"><div class="flow"></div></div>
+          <div class="pipe v branch2 flowing"><div class="flow"></div></div>
+          <div class="pipe h to-v1 flowing"><div class="flow"></div></div>
+          <div class="pipe h to-v2 flowing"><div class="flow"></div></div>
+          <div class="pipe h out-v1" id="pipe1out"><div class="flow"></div></div>
+          <div class="pipe h out-v2" id="pipe2out"><div class="flow"></div></div>
+          <div class="pipe v to-zone1" id="pipe1down"><div class="flow"></div></div>
+          <div class="pipe v to-zone2" id="pipe2down"><div class="flow"></div></div>
+          <div class="pipe h zone-line1" id="pipe1zone"><div class="flow"></div></div>
+          <div class="pipe h zone-line2" id="pipe2zone"><div class="flow"></div></div>
+
+          <div class="valve valve1" id="valve1">
+            <div class="wheel"></div>
+            <div class="state">VALVE 1<small>CLOSED</small></div>
+          </div>
+
+          <div class="valve valve2" id="valve2">
+            <div class="wheel"></div>
+            <div class="state">VALVE 2<small>CLOSED</small></div>
+          </div>
+
+          <div class="zone zone1" id="zone1">
+            <div class="zone-header">
+              <div class="zone-title">Palm group 1</div>
+              <div class="zone-status" id="zoneStatus1">Idle</div>
+            </div>
+            <div class="palm-group">
+              <div class="palm">
+                <div class="crown"><div class="leaf l1"></div><div class="leaf l2"></div><div class="leaf l3"></div><div class="leaf l4"></div><div class="leaf l5"></div><div class="leaf l6"></div></div>
+                <div class="mini-dates"><div class="date"></div><div class="date"></div><div class="date"></div></div>
+                <div class="trunk"></div>
+              </div>
+              <div class="palm" style="transform:scale(1.05) translateY(-4px);">
+                <div class="crown"><div class="leaf l1"></div><div class="leaf l2"></div><div class="leaf l3"></div><div class="leaf l4"></div><div class="leaf l5"></div><div class="leaf l6"></div></div>
+                <div class="mini-dates"><div class="date"></div><div class="date"></div><div class="date"></div></div>
+                <div class="trunk"></div>
+              </div>
+              <div class="palm" style="transform:scale(.96) translateY(5px);">
+                <div class="crown"><div class="leaf l1"></div><div class="leaf l2"></div><div class="leaf l3"></div><div class="leaf l4"></div><div class="leaf l5"></div><div class="leaf l6"></div></div>
+                <div class="mini-dates"><div class="date"></div><div class="date"></div><div class="date"></div></div>
+                <div class="trunk"></div>
+              </div>
+            </div>
+            <div class="drip-line">
+              <div class="dripper"><div class="drop"></div></div>
+              <div class="dripper"><div class="drop"></div></div>
+              <div class="dripper"><div class="drop"></div></div>
+              <div class="dripper"><div class="drop"></div></div>
+            </div>
+          </div>
+
+          <div class="zone zone2" id="zone2">
+            <div class="zone-header">
+              <div class="zone-title">Palm group 2</div>
+              <div class="zone-status" id="zoneStatus2">Idle</div>
+            </div>
+            <div class="palm-group">
+              <div class="palm">
+                <div class="crown"><div class="leaf l1"></div><div class="leaf l2"></div><div class="leaf l3"></div><div class="leaf l4"></div><div class="leaf l5"></div><div class="leaf l6"></div></div>
+                <div class="mini-dates"><div class="date"></div><div class="date"></div><div class="date"></div></div>
+                <div class="trunk"></div>
+              </div>
+              <div class="palm" style="transform:scale(1.04) translateY(-3px);">
+                <div class="crown"><div class="leaf l1"></div><div class="leaf l2"></div><div class="leaf l3"></div><div class="leaf l4"></div><div class="leaf l5"></div><div class="leaf l6"></div></div>
+                <div class="mini-dates"><div class="date"></div><div class="date"></div><div class="date"></div></div>
+                <div class="trunk"></div>
+              </div>
+              <div class="palm" style="transform:scale(.95) translateY(6px);">
+                <div class="crown"><div class="leaf l1"></div><div class="leaf l2"></div><div class="leaf l3"></div><div class="leaf l4"></div><div class="leaf l5"></div><div class="leaf l6"></div></div>
+                <div class="mini-dates"><div class="date"></div><div class="date"></div><div class="date"></div></div>
+                <div class="trunk"></div>
+              </div>
+            </div>
+            <div class="drip-line">
+              <div class="dripper"><div class="drop"></div></div>
+              <div class="dripper"><div class="drop"></div></div>
+              <div class="dripper"><div class="drop"></div></div>
+              <div class="dripper"><div class="drop"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      </div>
+      <div class="legend">
+        <div><strong>Signal</strong> &nbsp; Controller → Relays → Valves &nbsp;&nbsp; <strong>Water</strong> &nbsp; Tank → Palm groups</div>
+        <div class="mini-states">
+          <button class="mini-pill" id="miniV1" type="button" aria-pressed="false" title="Open valve 1">Valve 1: Closed</button>
+          <button class="mini-pill" id="miniV2" type="button" aria-pressed="false" title="Open valve 2">Valve 2: Closed</button>
+          <div class="mini-pill" id="miniTank">Tank: 72%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Compatibility note:
+    // We preserve the old `basin` key and `setBasin(level)` API from the previous prototype,
+    // but it now visually maps to the farm water-source tank level.
+    const state = {
+      valve1: false,
+      valve2: false,
+      basin: 72
+    };
+
+    function render() {
+      const v1 = state.valve1;
+      const v2 = state.valve2;
+      [1, 2].forEach(id => {
+        const open = state['valve' + id];
+        const button = document.getElementById('miniV' + id);
+        button.setAttribute('aria-pressed', String(open));
+        button.title = `${open ? 'Close' : 'Open'} valve ${id}`;
+      });
+      document.querySelector('.main-line').classList.toggle('flowing', v1 || v2);
+      document.querySelector('.branch1').classList.toggle('flowing', v1 || v2);
+      document.querySelector('.branch2').classList.toggle('flowing', v1);
+      document.querySelector('.to-v1').classList.toggle('flowing', v1);
+      document.querySelector('.to-v2').classList.toggle('flowing', v2);
+      document.getElementById('miniV1').classList.toggle('on', v1);
+      document.getElementById('miniV2').classList.toggle('on', v2);
+
+      document.getElementById('relay1').classList.toggle('active', v1);
+      document.getElementById('relay2').classList.toggle('active', v2);
+      document.getElementById('ssr1').classList.toggle('active', v1);
+      document.getElementById('ssr2').classList.toggle('active', v2);
+
+      const valve1 = document.getElementById('valve1');
+      const valve2 = document.getElementById('valve2');
+      valve1.classList.toggle('open', v1);
+      valve2.classList.toggle('open', v2);
+      valve1.querySelector('small').textContent = v1 ? 'OPEN' : 'CLOSED';
+      valve2.querySelector('small').textContent = v2 ? 'OPEN' : 'CLOSED';
+
+      ['pipe1out','pipe1down','pipe1zone'].forEach(id => document.getElementById(id).classList.toggle('flowing', v1));
+      ['pipe2out','pipe2down','pipe2zone'].forEach(id => document.getElementById(id).classList.toggle('flowing', v2));
+
+      document.getElementById('zone1').classList.toggle('active', v1);
+      document.getElementById('zone2').classList.toggle('active', v2);
+      document.getElementById('zoneStatus1').textContent = v1 ? 'Irrigating' : 'Idle';
+      document.getElementById('zoneStatus2').textContent = v2 ? 'Irrigating' : 'Idle';
+
+      document.getElementById('lcdScreen').textContent = `ZONE1: ${v1 ? 'ON ' : 'OFF'}  ZONE2: ${v2 ? 'ON' : 'OFF'}\nMODE: FARM MVP`;
+      document.getElementById('miniV1').textContent = `Valve 1: ${v1 ? 'Open' : 'Closed'}`;
+      document.getElementById('miniV2').textContent = `Valve 2: ${v2 ? 'Open' : 'Closed'}`;
+      document.getElementById('miniTank').textContent = `Tank: ${Math.round(state.basin)}%`;
+      document.getElementById('tankLevel').textContent = `${Math.round(state.basin)}%`;
+      document.getElementById('tankWater').style.height = `${Math.max(0, Math.min(100, state.basin))}%`;
+    }
+
+    setInterval(() => {
+      const active = (state.valve1 ? 1 : 0) + (state.valve2 ? 1 : 0);
+      if (active > 0) {
+        state.basin = Math.max(12, state.basin - 0.03 * active);
+        render();
+      }
+    }, 1000);
+
+    window.prototypeModel = {
+      state,
+      setValve(id, open) {
+        state['valve' + id] = !!open;
+        render();
+      },
+      setBasin(level) {
+        state.basin = Math.max(0, Math.min(100, Number(level) || 0));
+        render();
+      },
+      getState() {
+        return { ...state };
+      }
+    };
+
+    [1, 2].forEach(id => {
+      document.getElementById('miniV' + id).addEventListener('click', () => {
+        window.prototypeModel.setValve(id, !state['valve' + id]);
+      });
+    });
+
+    function fitScene() {
+      const stage = document.querySelector('.stage');
+      const scene = document.querySelector('.scene');
+      const mobile = matchMedia('(max-width:700px)').matches;
+      const w = mobile ? 660 : 1320, h = mobile ? 1330 : 790;
+      const scale = mobile ? stage.clientWidth / w : Math.min(stage.clientWidth / w, stage.clientHeight / h);
+      if (mobile) stage.style.height = `${h * scale}px`;
+      else stage.style.height = '';
+      scene.style.transform = `scale(${scale})`;
+      scene.style.left = `${Math.max(0, (stage.clientWidth - w * scale) / 2)}px`;
+      scene.style.top = mobile ? '0px' : `${Math.max(0, (stage.clientHeight - h * scale) / 2)}px`;
+    }
+    new ResizeObserver(fitScene).observe(document.querySelector('.stage'));
+    window.addEventListener('resize', fitScene);
+    render();
+    fitScene();
+  </script>
+</body>
+</html>

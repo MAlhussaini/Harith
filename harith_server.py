@@ -217,6 +217,11 @@ def irrigation_report():
     return render_template("report.html")
 
 
+@app.route("/smart-farm")
+def smart_farm():
+    return render_template("smart_farm.html")
+
+
 # -------- OpenSprinkler Proxy APIs --------
 
 @app.route("/co", methods=["OPTIONS"])

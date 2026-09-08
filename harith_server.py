@@ -232,6 +232,11 @@ def smart_farm():
     return render_template("smart_farm.html")
 
 
+@app.route("/harith-system-simulation")
+def harith_system_simulation():
+    return render_template("harith_system_simulation.html")
+
+
 # -------- OpenSprinkler Proxy APIs --------
 
 @app.route("/co", methods=["OPTIONS"])

@@ -71,7 +71,19 @@ input:focus-visible,select:focus-visible{outline:none}
 .inp{width:100%;min-height:48px;padding:11px 14px;font-size:16px;background:var(--elev);border:1px solid var(--line2);border-radius:var(--r-sm);color:var(--txt);transition:border-color .15s}
 .inp:focus{border-color:var(--acc)}
 .inp::placeholder{color:var(--txt3)}
+.inp:disabled{opacity:.5;cursor:not-allowed}
 select.inp{cursor:pointer}
+.ignore-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 13px;background:var(--elev);border:1px solid var(--line2);border-radius:var(--r-sm)}
+.ignore-copy{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ignore-title{font-size:13.5px;font-weight:600;color:var(--txt)}
+.ignore-hint{font-size:11.5px;color:var(--txt3);line-height:1.55}
+.switch{position:relative;width:48px;height:28px;flex:none;direction:ltr;cursor:pointer}
+.switch input{position:absolute;opacity:0;width:1px;height:1px}
+.switch-track{position:absolute;inset:0;border-radius:999px;background:var(--elev2);border:1px solid var(--line2);transition:background .18s,border-color .18s}
+.switch-track::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--txt2);transition:transform .18s,background .18s}
+.switch input:checked+.switch-track{background:var(--acc-dim);border-color:rgba(45,184,122,.55)}
+.switch input:checked+.switch-track::after{transform:translateX(20px);background:var(--acc)}
+.switch input:focus-visible+.switch-track{outline:2px solid var(--acc);outline-offset:2px}
 .seg{display:grid;grid-template-columns:1fr 1fr;background:var(--elev);border:1px solid var(--line2);border-radius:var(--r-sm);padding:4px;gap:4px}
 .seg-btn{min-height:40px;border-radius:6px;font-size:14.5px;color:var(--txt2)}
 .seg-btn.act{background:var(--acc-dim);color:var(--acc);font-weight:600}
@@ -296,6 +308,17 @@ html[data-theme="dark"] .leaflet-control-zoom a{background:var(--elev);color:var
       <div class="field">
         <label for="cfg-pw" data-i18n="password">كلمة المرور</label>
         <input class="inp ltr" id="cfg-pw" type="password" autocomplete="current-password" placeholder="••••••••" value="opendoor">
+      </div>
+
+      <div class="ignore-row">
+        <div class="ignore-copy">
+          <span class="ignore-title" id="ignore-title" data-i18n="ignorePassword">تجاهل كلمة المرور</span>
+          <span class="ignore-hint" id="ignore-hint" data-i18n="ignorePasswordHint">فعّله فقط بعد ضبط Ignore Password = Yes من أزرار الجهاز.</span>
+        </div>
+        <label class="switch">
+          <input id="cfg-ignore-pw" type="checkbox" role="switch" aria-labelledby="ignore-title" aria-describedby="ignore-hint" onchange="setIgnorePassword(this.checked)">
+          <span class="switch-track" aria-hidden="true"></span>
+        </label>
       </div>
 
       <button class="btn-primary" id="connect-btn" onclick="connectOS()">
@@ -554,10 +577,10 @@ const T={
     appTitle:'التحكم في نظام الري',language:'اللغة',
     host:'عنوان الجهاز (Host)',
     hostHint:'داخل الشبكة المحلية استخدم عنوان الجهاز مباشرة (192.168.x.x)، وخارجها يتم التمرير تلقائياً عبر خادم حارث.',
-    password:'كلمة المرور',connect:'اتصال',connecting:'جارٍ الاتصال…',
+    password:'كلمة المرور',ignorePassword:'تجاهل كلمة المرور',ignorePasswordHint:'فعّله فقط بعد ضبط Ignore Password = Yes من أزرار الجهاز.',connect:'اتصال',connecting:'جارٍ الاتصال…',
     connected:'متصل',connError:'خطأ بالاتصال',
     connectedOk:'تم الاتصال بنظام الري',
-    connectFail:'تعذر الوصول للجهاز — تأكد من العنوان وكلمة المرور.',
+    connectFail:'تعذر الوصول للجهاز — تأكد من العنوان وكلمة المرور.',ignoreConnectFail:'تعذر الدخول دون كلمة مرور — تأكد من تفعيل Ignore Password = Yes على الجهاز.',
     tabStations:'المحطات',tabAdvanced:'إعدادات متقدمة',
     total:'إجمالي المحطات',activeNow:'نشطة الآن',disabledCount:'معطّلة',
     stopAll:'إيقاف الكل',refresh:'تحديث',
@@ -612,10 +635,10 @@ const T={
     appTitle:'Irrigation Control',language:'Language',
     host:'Device address (Host)',
     hostHint:'On your local network use the device address directly (192.168.x.x); otherwise requests are routed through the Harith server automatically.',
-    password:'Password',connect:'Connect',connecting:'Connecting…',
+    password:'Password',ignorePassword:'Ignore password',ignorePasswordHint:'Enable only after setting Ignore Password = Yes using the device buttons.',connect:'Connect',connecting:'Connecting…',
     connected:'Connected',connError:'Connection error',
     connectedOk:'Connected to the irrigation system',
-    connectFail:'Cannot reach the device — check the address and password.',
+    connectFail:'Cannot reach the device — check the address and password.',ignoreConnectFail:'Cannot sign in without a password — confirm Ignore Password = Yes is enabled on the device.',
     tabStations:'Stations',tabAdvanced:'Advanced settings',
     total:'Total stations',activeNow:'Active now',disabledCount:'Disabled',
     stopAll:'Stop all',refresh:'Refresh',
@@ -682,7 +705,7 @@ const IC={
 };
 
 /* ================= State ================= */
-const LS={lang:'harith_os_lang',host:'harith_os_host',pw:'harith_os_pw',theme:'harith_os_theme',conn:'harith_os_conn',lat:'harith_os_lat',lon:'harith_os_lon'};
+const LS={lang:'harith_os_lang',host:'harith_os_host',pw:'harith_os_pw',ignorePw:'harith_os_ignore_pw',theme:'harith_os_theme',conn:'harith_os_conn',lat:'harith_os_lat',lon:'harith_os_lon'};
 let lang='ar';
 let cfg={host:'http://192.168.100.30',password:'opendoor'};
 let theme='dark',badgeState='off',lastSig='',demoMode=false;
@@ -730,7 +753,14 @@ function md5(str){
 /* ================= Helpers ================= */
 function $(id){return document.getElementById(id)}
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-function pwHash(){return md5($('cfg-pw').value||cfg.password)}
+function ignorePassword(){return $('cfg-ignore-pw').checked}
+function pwHash(){return ignorePassword()?'':md5($('cfg-pw').value||cfg.password)}
+function setIgnorePassword(enabled,save=true){
+  const toggle=$('cfg-ignore-pw'),pw=$('cfg-pw');
+  toggle.checked=!!enabled;
+  pw.disabled=!!enabled;
+  if(save){try{localStorage.setItem(LS.ignorePw,enabled?'1':'0')}catch(e){}}
+}
 function hostVal(){return ($('cfg-host').value||cfg.host).trim().replace(/\/+$/,'')}
 function fmtTime(epoch){
   if(!epoch)return'';
@@ -911,7 +941,8 @@ function setupStatus(msg,isErr=false){
 
 /* ================= Connect ================= */
 function buildStations(d){
-  stations=(d.snames||[]).map((n,i)=>({index:i,name:n||`S${String(i+1).padStart(2,'0')}`,enabled:true,running:false,queued:false,dur:300,timeLeft:0,runTotal:0,startTime:0}));
+  if(!d||!Array.isArray(d.snames))throw new Error(d&&d.result===2?'unauthorized':'invalid station response');
+  stations=d.snames.map((n,i)=>({index:i,name:n||`S${String(i+1).padStart(2,'0')}`,enabled:true,running:false,queued:false,dur:300,timeLeft:0,runTotal:0,startTime:0}));
   const disVal=(d.stn_dis||[])[0]||0;
   stations.forEach((s,i)=>{s.enabled=!(disVal&(1<<i))});
 }
@@ -919,6 +950,7 @@ function savePrefs(){
   try{
     localStorage.setItem(LS.host,hostVal());
     localStorage.setItem(LS.pw,$('cfg-pw').value);
+    localStorage.setItem(LS.ignorePw,ignorePassword()?'1':'0');
     localStorage.setItem(LS.conn,'1');
   }catch(e){}
 }
@@ -940,7 +972,7 @@ async function connectOS(){
     refreshRunning();
   }catch(e){
     connected=false;
-    setupStatus(t('connectFail'),true);
+    setupStatus(t(ignorePassword()?'ignoreConnectFail':'connectFail'),true);
   }
   btn.disabled=false;spin.hidden=true;
 }
@@ -958,7 +990,7 @@ async function autoConnect(){
   }catch(e){
     connected=false;
     showView('setup');
-    setupStatus(t('connectFail'),true);
+    setupStatus(t(ignorePassword()?'ignoreConnectFail':'connectFail'),true);
   }
 }
 
@@ -1536,8 +1568,10 @@ document.addEventListener('change',e=>{if(e.target&&PERSIST_FIELDS.includes(e.ta
     savedTheme=localStorage.getItem(LS.theme);
     const h=localStorage.getItem(LS.host);
     const p=localStorage.getItem(LS.pw);
+    const ignorePw=localStorage.getItem(LS.ignorePw)==='1';
     if(h)$('cfg-host').value=h;
     if(p)$('cfg-pw').value=p;
+    setIgnorePassword(ignorePw,false);
     auto=localStorage.getItem(LS.conn)==='1'&&!!h;
   }catch(e){}
   setTheme(savedTheme==='light'?'light':'dark');

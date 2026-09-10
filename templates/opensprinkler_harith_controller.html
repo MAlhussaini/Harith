@@ -576,11 +576,19 @@ const T={
     docTitle:'حارث · التحكم في الري',
     appTitle:'التحكم في نظام الري',language:'اللغة',
     host:'عنوان الجهاز (Host)',
-    hostHint:'داخل الشبكة المحلية استخدم عنوان الجهاز مباشرة (192.168.x.x)، وخارجها يتم التمرير تلقائياً عبر خادم حارث.',
+    hostHint:'استخدم عنوان الجهاز الداخلي مباشرة (10.x أو 172.16–31.x أو 192.168.x) وأضف المنفذ إذا تغيّر. يدعم أيضًا اسمًا محليًا مثل harith.local إذا كانت الشبكة تحلّه. سيطلب Chrome إذن الشبكة المحلية، أما العناوين العامة فتمر عبر خادم حارث.',
     password:'كلمة المرور',ignorePassword:'تجاهل كلمة المرور',ignorePasswordHint:'فعّله فقط بعد ضبط Ignore Password = Yes من أزرار الجهاز.',connect:'اتصال',connecting:'جارٍ الاتصال…',
     connected:'متصل',connError:'خطأ بالاتصال',
     connectedOk:'تم الاتصال بنظام الري',
-    connectFail:'تعذر الوصول للجهاز — تأكد من العنوان وكلمة المرور.',ignoreConnectFail:'تعذر الدخول دون كلمة مرور — تأكد من تفعيل Ignore Password = Yes على الجهاز.',
+    connectFail:'تعذر الوصول للجهاز — تأكد من العنوان وكلمة المرور.',
+    invalidHost:'عنوان الجهاز غير صالح. استخدم مثلًا http://10.56.215.106 أو أضف :PORT إذا تغيّر المنفذ.',
+    localPermissionDenied:'تم رفض إذن الشبكة المحلية. من إعدادات موقع حارث في Chrome اسمح بالوصول إلى الشبكة المحلية ثم أعد المحاولة.',
+    localNetworkFail:'تعذر الاتصال المباشر بالجهاز. تأكد أن عنوان الجهاز يفتح من هذا الجوال، وأن الجوال على الشبكة نفسها، وأن IP والمنفذ صحيحان، ثم اسمح بإذن الشبكة المحلية.',
+    proxyNetworkFail:'تعذر على خادم حارث الوصول إلى العنوان. استخدم البروكسي للعناوين العامة فقط؛ الأجهزة ذات العنوان الداخلي تتطلب اتصال الجوال بالشبكة نفسها.',
+    authFail:'رفض الجهاز كلمة المرور. تحقق من كلمة المرور ثم أعد المحاولة.',
+    ignoreConnectFail:'رفض الجهاز الدخول دون كلمة مرور. تأكد من ضبط Ignore Password = Yes من أزرار الجهاز.',
+    invalidDeviceResponse:'تم الوصول إلى العنوان، لكن الرد ليس استجابة OpenSprinkler صحيحة.',
+    httpConnectFail:'رد الجهاز بخطأ HTTP {status}. تحقق من العنوان والمنفذ.',
     tabStations:'المحطات',tabAdvanced:'إعدادات متقدمة',
     total:'إجمالي المحطات',activeNow:'نشطة الآن',disabledCount:'معطّلة',
     stopAll:'إيقاف الكل',refresh:'تحديث',
@@ -634,11 +642,19 @@ const T={
     docTitle:'Harith · Irrigation Control',
     appTitle:'Irrigation Control',language:'Language',
     host:'Device address (Host)',
-    hostHint:'On your local network use the device address directly (192.168.x.x); otherwise requests are routed through the Harith server automatically.',
+    hostHint:'Use the device private address directly (10.x, 172.16–31.x, or 192.168.x) and include the port if changed. A local name such as harith.local is also supported when your network resolves it. Chrome will request Local Network access; public addresses are routed through Harith.',
     password:'Password',ignorePassword:'Ignore password',ignorePasswordHint:'Enable only after setting Ignore Password = Yes using the device buttons.',connect:'Connect',connecting:'Connecting…',
     connected:'Connected',connError:'Connection error',
     connectedOk:'Connected to the irrigation system',
-    connectFail:'Cannot reach the device — check the address and password.',ignoreConnectFail:'Cannot sign in without a password — confirm Ignore Password = Yes is enabled on the device.',
+    connectFail:'Cannot reach the device — check the address and password.',
+    invalidHost:'Invalid device address. For example, use http://10.56.215.106 or add :PORT if the port was changed.',
+    localPermissionDenied:'Local Network access was denied. Allow Local Network access for the Harith site in Chrome settings, then try again.',
+    localNetworkFail:'Could not connect directly to the device. Confirm its address opens on this phone, the phone is on the same network, the IP and port are correct, and Local Network access is allowed.',
+    proxyNetworkFail:'The Harith server could not reach that address. Use the proxy only for public addresses; private devices require the phone to be connected to the same network.',
+    authFail:'The device rejected the password. Check it and try again.',
+    ignoreConnectFail:'The device rejected passwordless access. Confirm Ignore Password = Yes is enabled using the device buttons.',
+    invalidDeviceResponse:'The address responded, but it was not a valid OpenSprinkler response.',
+    httpConnectFail:'The device returned HTTP {status}. Check the address and port.',
     tabStations:'Stations',tabAdvanced:'Advanced settings',
     total:'Total stations',activeNow:'Active now',disabledCount:'Disabled',
     stopAll:'Stop all',refresh:'Refresh',
@@ -762,6 +778,102 @@ function setIgnorePassword(enabled,save=true){
   if(save){try{localStorage.setItem(LS.ignorePw,enabled?'1':'0')}catch(e){}}
 }
 function hostVal(){return ($('cfg-host').value||cfg.host).trim().replace(/\/+$/,'')}
+
+function apiError(code,details={}){
+  const err=new Error(code);
+  err.name='HarithApiError';
+  err.code=code;
+  Object.assign(err,details);
+  return err;
+}
+
+function parseDeviceHost(rawHost){
+  let raw=String(rawHost||'').trim();
+  if(!raw)throw apiError('invalidHost');
+  if(!/^[a-z][a-z\d+.-]*:\/\//i.test(raw))raw='http://'+raw;
+  let parsed;
+  try{parsed=new URL(raw)}catch(e){throw apiError('invalidHost')}
+  if(!/^https?:$/.test(parsed.protocol)||!parsed.hostname||parsed.username||parsed.password||parsed.search||parsed.hash){
+    throw apiError('invalidHost');
+  }
+  const path=parsed.pathname.replace(/\/+$/,'');
+  return {
+    base:parsed.origin+(path&&path!=='/'?path:''),
+    hostname:parsed.hostname.replace(/^\[|\]$/g,'').toLowerCase()
+  };
+}
+
+function networkAddressSpace(hostname){
+  const host=String(hostname||'').replace(/^\[|\]$/g,'').toLowerCase();
+  if(host==='localhost'||host.endsWith('.localhost')||host==='::1')return'loopback';
+  if(host.endsWith('.local'))return'local';
+  if(host&&!host.includes('.')&&!host.includes(':'))return'local';
+
+  const octets=host.split('.');
+  if(octets.length===4&&octets.every(x=>/^\d{1,3}$/.test(x)&&Number(x)>=0&&Number(x)<=255)){
+    const [a,b]=octets.map(Number);
+    if(a===127)return'loopback';
+    if(a===10||
+       (a===100&&b>=64&&b<=127)||
+       (a===169&&b===254)||
+       (a===172&&b>=16&&b<=31)||
+       (a===192&&b===168))return'local';
+    return'public';
+  }
+
+  if(host.includes(':')){
+    const first=parseInt(host.split(':')[0]||'0',16);
+    if((first&0xfe00)===0xfc00||(first&0xffc0)===0xfe80)return'local';
+  }
+  return'public';
+}
+
+function proxyEndpoint(){
+  return /^https?:$/.test(location.protocol)
+    ? `${location.origin}/os/proxy`
+    : 'https://harith.onrender.com/os/proxy';
+}
+
+function buildApiRequest(endpoint,params={},passwordHash='',rawHost=hostVal()){
+  const target=parseDeviceHost(rawHost);
+  const addressSpace=networkAddressSpace(target.hostname);
+  const direct=addressSpace!=='public';
+  let url;
+  if(direct){
+    const qs=new URLSearchParams({pw:passwordHash,...params}).toString();
+    url=`${target.base}${endpoint}?${qs}`;
+  }else{
+    const qs=new URLSearchParams({_ep:endpoint,_host:target.base,pw:passwordHash,...params}).toString();
+    url=`${proxyEndpoint()}?${qs}`;
+  }
+  const options={mode:'cors',credentials:'omit',cache:'no-store'};
+  if(addressSpace==='local')options.targetAddressSpace='local';
+  return {url,options,direct,addressSpace};
+}
+
+async function localNetworkPermissionState(){
+  if(!navigator.permissions||typeof navigator.permissions.query!=='function')return'unknown';
+  for(const name of ['local-network','local-network-access']){
+    try{
+      const permission=await navigator.permissions.query({name});
+      if(permission&&permission.state)return permission.state;
+    }catch(e){}
+  }
+  return'unknown';
+}
+
+function connectionErrorMessage(err){
+  const code=err&&err.code;
+  if(code==='invalidHost')return t('invalidHost');
+  if(code==='localPermissionDenied')return t('localPermissionDenied');
+  if(code==='localNetworkFail')return t('localNetworkFail');
+  if(code==='proxyNetworkFail')return t('proxyNetworkFail');
+  if(code==='unauthorized')return t(ignorePassword()?'ignoreConnectFail':'authFail');
+  if(code==='invalidDeviceResponse')return t('invalidDeviceResponse');
+  if(code==='httpError')return fmt(t('httpConnectFail'),{status:err.status||'—'});
+  return t('connectFail');
+}
+
 function fmtTime(epoch){
   if(!epoch)return'';
   try{return new Date(epoch*1000).toLocaleTimeString(lang==='ar'?'ar-SA':'en-US',{hour:'2-digit',minute:'2-digit'})}
@@ -781,19 +893,28 @@ function showMsg(txt,ok=true){
 async function apiGet(endpoint,params={}){
   if(demoMode)return demoApi(endpoint,params);
   const pw=pwHash();
-  const host=hostVal();
-  const isLocal=host.includes('192.168.')||host.includes('localhost')||host.includes('127.0.');
-  let url,qs;
-  if(isLocal){
-    qs=new URLSearchParams({pw,...params}).toString();
-    url=`${host}${endpoint}?${qs}`;
-  }else{
-    qs=new URLSearchParams({_ep:endpoint,_host:host,pw,...params}).toString();
-    url=`https://harith.onrender.com/os/proxy?${qs}`;
+  const requestInfo=buildApiRequest(endpoint,params,pw);
+  let r;
+  try{
+    r=await fetch(requestInfo.url,requestInfo.options);
+  }catch(e){
+    if(requestInfo.direct){
+      const permission=await localNetworkPermissionState();
+      throw apiError(permission==='denied'?'localPermissionDenied':'localNetworkFail',{cause:e});
+    }
+    throw apiError('proxyNetworkFail',{cause:e});
   }
-  const r=await fetch(url,{mode:'cors'});
-  if(!r.ok)throw new Error(`HTTP ${r.status}`);
-  return r.json();
+
+  let data=null;
+  try{data=await r.json()}catch(e){}
+  if(data&&Number(data.result)===2)throw apiError('unauthorized');
+  if(!r.ok){
+    if(!requestInfo.direct&&r.status===502)throw apiError('proxyNetworkFail',{status:r.status});
+    if(r.status===401||r.status===403)throw apiError('unauthorized',{status:r.status});
+    throw apiError('httpError',{status:r.status});
+  }
+  if(data===null)throw apiError('invalidDeviceResponse');
+  return data;
 }
 
 /* ================= Demo simulator =================
@@ -941,7 +1062,7 @@ function setupStatus(msg,isErr=false){
 
 /* ================= Connect ================= */
 function buildStations(d){
-  if(!d||!Array.isArray(d.snames))throw new Error(d&&d.result===2?'unauthorized':'invalid station response');
+  if(!d||!Array.isArray(d.snames))throw apiError(d&&Number(d.result)===2?'unauthorized':'invalidDeviceResponse');
   stations=d.snames.map((n,i)=>({index:i,name:n||`S${String(i+1).padStart(2,'0')}`,enabled:true,running:false,queued:false,dur:300,timeLeft:0,runTotal:0,startTime:0}));
   const disVal=(d.stn_dis||[])[0]||0;
   stations.forEach((s,i)=>{s.enabled=!(disVal&(1<<i))});
@@ -972,7 +1093,7 @@ async function connectOS(){
     refreshRunning();
   }catch(e){
     connected=false;
-    setupStatus(t(ignorePassword()?'ignoreConnectFail':'connectFail'),true);
+    setupStatus(connectionErrorMessage(e),true);
   }
   btn.disabled=false;spin.hidden=true;
 }
@@ -990,7 +1111,7 @@ async function autoConnect(){
   }catch(e){
     connected=false;
     showView('setup');
-    setupStatus(t(ignorePassword()?'ignoreConnectFail':'connectFail'),true);
+    setupStatus(connectionErrorMessage(e),true);
   }
 }
 
@@ -1524,7 +1645,7 @@ async function saveConnection(){
   }catch(e){
     connected=false;
     updateBadge('err');
-    showMsg(t('connectFail'),false);
+    showMsg(connectionErrorMessage(e),false);
   }
 }
 

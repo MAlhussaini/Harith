@@ -51,10 +51,30 @@ OS_PASSWORD = os.environ.get("OS_PASSWORD", "opendoor")
 REQUEST_TIMEOUT = 5
 LAST_SCHEDULE_FILE = "last_schedule.json"
 
+PROXY_CORS_ALLOWED_ORIGINS = {
+    origin.strip()
+    for origin in os.environ.get(
+        "PROXY_CORS_ALLOWED_ORIGINS",
+        "https://harith.onrender.com,https://harith-platform.onrender.com",
+    ).split(",")
+    if origin.strip()
+}
+
 
 @app.after_request
 def add_cors_headers(response):
-    # لتسهيل الاتصال من صفحة المزارع وغيره
+    # The generic device proxy must not be readable by arbitrary websites.
+    # Same-origin dashboard calls do not need a CORS header at all.
+    if request.path == "/os/proxy":
+        origin = request.headers.get("Origin")
+        if origin in PROXY_CORS_ALLOWED_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Methods"] = "GET,OPTIONS"
+            response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+            response.vary.add("Origin")
+        return response
+
+    # Preserve the existing policy for the other legacy endpoints/pages.
     response.headers.setdefault("Access-Control-Allow-Origin", "*")
     response.headers.setdefault("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
     response.headers.setdefault("Access-Control-Allow-Headers", "Content-Type")
